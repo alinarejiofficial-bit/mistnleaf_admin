@@ -1,0 +1,407 @@
+import { formatDisplayDate, formatINR } from "@/lib/data";
+
+export type ReservationStatus =
+  | "Confirmed"
+  | "Checked-in"
+  | "Pending"
+  | "Cancelled"
+  | "Checked-out";
+
+export type BookingSource =
+  | "Direct website"
+  | "OTA / Booking.com"
+  | "Walk-in"
+  | "Travel agent";
+
+export type PaymentStatus = "Paid" | "Partial" | "Pending" | "Refunded";
+
+export type Reservation = {
+  id: string;
+  guest: string;
+  email: string;
+  phone: string;
+  room: string;
+  roomType: string;
+  adults: number;
+  children: number;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  status: ReservationStatus;
+  source: BookingSource;
+  paymentStatus: PaymentStatus;
+  amount: number;
+  paidAmount: number;
+  notes?: string;
+};
+
+export const reservationStatusStyles: Record<ReservationStatus, string> = {
+  Confirmed: "bg-brand-soft text-brand",
+  "Checked-in": "bg-[#e7f0f5] text-info",
+  Pending: "bg-accent-soft text-[#8a6a2f]",
+  Cancelled: "bg-[#f8e9e6] text-danger",
+  "Checked-out": "bg-surface-muted text-muted",
+};
+
+export const paymentStatusStyles: Record<PaymentStatus, string> = {
+  Paid: "bg-[#e8f3ec] text-success",
+  Partial: "bg-accent-soft text-[#8a6a2f]",
+  Pending: "bg-[#f8e9e6] text-danger",
+  Refunded: "bg-surface-muted text-muted",
+};
+
+export const reservations: Reservation[] = [
+  {
+    id: "RSV-2041",
+    guest: "Ananya Sharma",
+    email: "ananya.sharma@email.com",
+    phone: "+91 98765 41021",
+    room: "Leaf Suite 12",
+    roomType: "Leaf Suite",
+    adults: 2,
+    children: 1,
+    checkIn: "2026-08-20",
+    checkOut: "2026-08-23",
+    nights: 3,
+    status: "Confirmed",
+    source: "Direct website",
+    paymentStatus: "Paid",
+    amount: 18600,
+    paidAmount: 18600,
+  },
+  {
+    id: "RSV-2042",
+    guest: "Rahul Mehta",
+    email: "rahul.mehta@email.com",
+    phone: "+91 98200 11844",
+    room: "Mist Twin 04",
+    roomType: "Mist Twin",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-20",
+    checkOut: "2026-08-22",
+    nights: 2,
+    status: "Pending",
+    source: "OTA / Booking.com",
+    paymentStatus: "Pending",
+    amount: 9800,
+    paidAmount: 0,
+    notes: "Awaiting card authorization",
+  },
+  {
+    id: "RSV-2038",
+    guest: "Priya Nair",
+    email: "priya.nair@email.com",
+    phone: "+91 97654 22018",
+    room: "Garden Deluxe 08",
+    roomType: "Garden Deluxe",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-19",
+    checkOut: "2026-08-24",
+    nights: 5,
+    status: "Checked-in",
+    source: "Travel agent",
+    paymentStatus: "Partial",
+    amount: 27400,
+    paidAmount: 15000,
+  },
+  {
+    id: "RSV-2045",
+    guest: "James Carter",
+    email: "james.carter@email.com",
+    phone: "+1 415 882 4410",
+    room: "Canopy King 21",
+    roomType: "Canopy King",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-21",
+    checkOut: "2026-08-25",
+    nights: 4,
+    status: "Confirmed",
+    source: "Direct website",
+    paymentStatus: "Paid",
+    amount: 31200,
+    paidAmount: 31200,
+  },
+  {
+    id: "RSV-2033",
+    guest: "Meera Iyer",
+    email: "meera.iyer@email.com",
+    phone: "+91 99001 33455",
+    room: "Leaf Suite 03",
+    roomType: "Leaf Suite",
+    adults: 1,
+    children: 0,
+    checkIn: "2026-08-18",
+    checkOut: "2026-08-20",
+    nights: 2,
+    status: "Checked-out",
+    source: "Walk-in",
+    paymentStatus: "Paid",
+    amount: 15400,
+    paidAmount: 15400,
+  },
+  {
+    id: "RSV-2040",
+    guest: "Hiroshi Tanaka",
+    email: "h.tanaka@email.com",
+    phone: "+81 90 1122 8899",
+    room: "Canopy King 15",
+    roomType: "Canopy King",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-18",
+    checkOut: "2026-08-22",
+    nights: 4,
+    status: "Checked-in",
+    source: "OTA / Booking.com",
+    paymentStatus: "Paid",
+    amount: 34800,
+    paidAmount: 34800,
+  },
+  {
+    id: "RSV-2039",
+    guest: "Leo Fernandes",
+    email: "leo.fernandes@email.com",
+    phone: "+91 98111 66770",
+    room: "Mist Twin 13",
+    roomType: "Mist Twin",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-19",
+    checkOut: "2026-08-21",
+    nights: 2,
+    status: "Checked-in",
+    source: "Walk-in",
+    paymentStatus: "Partial",
+    amount: 10000,
+    paidAmount: 5000,
+  },
+  {
+    id: "RSV-2035",
+    guest: "Sana Qureshi",
+    email: "sana.q@email.com",
+    phone: "+91 98770 22110",
+    room: "Garden Deluxe 05",
+    roomType: "Garden Deluxe",
+    adults: 2,
+    children: 1,
+    checkIn: "2026-08-17",
+    checkOut: "2026-08-21",
+    nights: 4,
+    status: "Checked-in",
+    source: "Direct website",
+    paymentStatus: "Paid",
+    amount: 28800,
+    paidAmount: 28800,
+  },
+  {
+    id: "RSV-2044",
+    guest: "Nora Ellis",
+    email: "nora.ellis@email.com",
+    phone: "+44 7700 900123",
+    room: "Garden Deluxe 20",
+    roomType: "Garden Deluxe",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-22",
+    checkOut: "2026-08-26",
+    nights: 4,
+    status: "Confirmed",
+    source: "Travel agent",
+    paymentStatus: "Partial",
+    amount: 30400,
+    paidAmount: 10000,
+  },
+  {
+    id: "RSV-2036",
+    guest: "Daniel Ortiz",
+    email: "d.ortiz@email.com",
+    phone: "+34 612 445 778",
+    room: "Canopy King 07",
+    roomType: "Canopy King",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-16",
+    checkOut: "2026-08-20",
+    nights: 4,
+    status: "Checked-out",
+    source: "OTA / Booking.com",
+    paymentStatus: "Paid",
+    amount: 34000,
+    paidAmount: 34000,
+  },
+  {
+    id: "RSV-2046",
+    guest: "Kavya Menon",
+    email: "kavya.m@email.com",
+    phone: "+91 98450 11990",
+    room: "Leaf Suite 18",
+    roomType: "Leaf Suite",
+    adults: 2,
+    children: 2,
+    checkIn: "2026-08-23",
+    checkOut: "2026-08-27",
+    nights: 4,
+    status: "Pending",
+    source: "Direct website",
+    paymentStatus: "Pending",
+    amount: 39200,
+    paidAmount: 0,
+  },
+  {
+    id: "RSV-2030",
+    guest: "Arjun Desai",
+    email: "arjun.desai@email.com",
+    phone: "+91 97222 88001",
+    room: "Mist Twin 02",
+    roomType: "Mist Twin",
+    adults: 1,
+    children: 0,
+    checkIn: "2026-08-14",
+    checkOut: "2026-08-16",
+    nights: 2,
+    status: "Cancelled",
+    source: "Walk-in",
+    paymentStatus: "Refunded",
+    amount: 9600,
+    paidAmount: 0,
+    notes: "Guest cancelled 24h before arrival",
+  },
+  {
+    id: "RSV-2043",
+    guest: "Sofia Martins",
+    email: "sofia.m@email.com",
+    phone: "+351 912 334 556",
+    room: "Canopy King 19",
+    roomType: "Canopy King",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-20",
+    checkOut: "2026-08-23",
+    nights: 3,
+    status: "Confirmed",
+    source: "OTA / Booking.com",
+    paymentStatus: "Paid",
+    amount: 26700,
+    paidAmount: 26700,
+  },
+  {
+    id: "RSV-2028",
+    guest: "The Kapoor Family",
+    email: "kapoor.family@email.com",
+    phone: "+91 98100 44556",
+    room: "Leaf Suite 18",
+    roomType: "Leaf Suite",
+    adults: 2,
+    children: 2,
+    checkIn: "2026-08-15",
+    checkOut: "2026-08-20",
+    nights: 5,
+    status: "Checked-in",
+    source: "Travel agent",
+    paymentStatus: "Partial",
+    amount: 49000,
+    paidAmount: 25000,
+  },
+  {
+    id: "RSV-2047",
+    guest: "Imran Sheikh",
+    email: "imran.s@email.com",
+    phone: "+91 98989 10101",
+    room: "Garden Deluxe 14",
+    roomType: "Garden Deluxe",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-24",
+    checkOut: "2026-08-26",
+    nights: 2,
+    status: "Pending",
+    source: "Direct website",
+    paymentStatus: "Pending",
+    amount: 14800,
+    paidAmount: 0,
+  },
+  {
+    id: "RSV-2031",
+    guest: "Tara Banerjee",
+    email: "tara.b@email.com",
+    phone: "+91 98333 77881",
+    room: "Leaf Suite 11",
+    roomType: "Leaf Suite",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-17",
+    checkOut: "2026-08-22",
+    nights: 5,
+    status: "Checked-in",
+    source: "Direct website",
+    paymentStatus: "Paid",
+    amount: 46000,
+    paidAmount: 46000,
+  },
+  {
+    id: "RSV-2025",
+    guest: "Paul Nguyen",
+    email: "paul.nguyen@email.com",
+    phone: "+61 412 889 001",
+    room: "Mist Twin 01",
+    roomType: "Mist Twin",
+    adults: 2,
+    children: 0,
+    checkIn: "2026-08-10",
+    checkOut: "2026-08-13",
+    nights: 3,
+    status: "Cancelled",
+    source: "OTA / Booking.com",
+    paymentStatus: "Refunded",
+    amount: 14400,
+    paidAmount: 0,
+  },
+  {
+    id: "RSV-2029",
+    guest: "Vikram Seth",
+    email: "vikram.seth@email.com",
+    phone: "+91 99090 12121",
+    room: "Mist Twin 02",
+    roomType: "Mist Twin",
+    adults: 1,
+    children: 0,
+    checkIn: "2026-08-18",
+    checkOut: "2026-08-21",
+    nights: 3,
+    status: "Checked-in",
+    source: "Walk-in",
+    paymentStatus: "Paid",
+    amount: 14400,
+    paidAmount: 14400,
+  },
+];
+
+export function getReservationCounts(list: Reservation[] = reservations) {
+  const today = "2026-08-20";
+  return {
+    total: list.length,
+    today: list.filter((r) => r.checkIn === today).length,
+    upcoming: list.filter(
+      (r) =>
+        r.checkIn > today &&
+        (r.status === "Confirmed" || r.status === "Pending"),
+    ).length,
+    pending: list.filter((r) => r.status === "Pending").length,
+    confirmed: list.filter((r) => r.status === "Confirmed").length,
+    checkedIn: list.filter((r) => r.status === "Checked-in").length,
+    cancelled: list.filter((r) => r.status === "Cancelled").length,
+    completed: list.filter((r) => r.status === "Checked-out").length,
+    revenue: list
+      .filter((r) => r.status !== "Cancelled")
+      .reduce((sum, r) => sum + r.paidAmount, 0),
+  };
+}
+
+export function getBalanceDue(reservation: Reservation) {
+  return Math.max(0, reservation.amount - reservation.paidAmount);
+}
+
+export { formatDisplayDate, formatINR };

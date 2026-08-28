@@ -1,0 +1,7 @@
+import { ProfileManager } from "@/components/profile/ProfileManager";
+
+export const metadata = { title: "Profile" };
+
+export default function ProfilePage() {
+  return <ProfileManager />;
+}

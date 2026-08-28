@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# CMS content persisted on disk (edited via admin API)
+/data/cms-content.json
