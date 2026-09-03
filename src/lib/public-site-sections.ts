@@ -65,3 +65,24 @@ export const publicSiteNavSections = publicSiteSections.filter((section) => sect
 export const homepageScrollSections = publicSiteSections.filter(
   (section) => !section.standalonePage,
 );
+
+/** Homepage scroll blocks only — not standalone pages, contact, or footer. */
+export const homepageEditorSections: PublicSiteSectionConfig[] = [
+  { id: "hero", label: "Hero", cmsSection: "homepage" },
+  {
+    id: "about",
+    label: "About band",
+    cmsSection: "about",
+    navLabel: "About",
+    standalonePage: true,
+  },
+  ...homepageScrollSections.filter(
+    (section) =>
+      section.id !== "hero" && section.id !== "contact" && section.id !== "footer",
+  ),
+];
+
+/** Inline homepage editors — never routes to full page CMS (Rooms, Experiences, etc.). */
+export function getHomepageEditorHref(section: PublicSiteSectionConfig): string {
+  return `/website/homepage?edit=${section.id}`;
+}

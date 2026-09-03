@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { Download, FileText, Printer, Search } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { FinanceGreeting } from "@/components/finance/FinanceGreeting";
+import { useOps } from "@/components/ops/OpsProvider";
 import {
-  financeInvoices,
   formatINR,
   invoiceStatusStyles,
+  type FinanceInvoiceDetail,
 } from "@/lib/finance-data";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -16,9 +17,10 @@ import { EmptyRow, SectionCard } from "@/components/ui/ModulePrimitives";
 type StatusFilter = "All" | "Paid" | "Unpaid" | "Overdue" | "Draft";
 
 export function FinanceInvoicesManager() {
+  const { financeInvoices } = useOps();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("All");
-  const [selectedId, setSelectedId] = useState(financeInvoices[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -31,7 +33,7 @@ export function FinanceInvoicesManager() {
         inv.guest.toLowerCase().includes(q)
       );
     });
-  }, [query, filter]);
+  }, [query, filter, financeInvoices]);
 
   const selected =
     filtered.find((i) => i.id === selectedId) ?? filtered[0] ?? null;
@@ -140,7 +142,7 @@ export function FinanceInvoicesManager() {
 function InvoiceDetailPanel({
   invoice,
 }: {
-  invoice: (typeof financeInvoices)[number] | null;
+  invoice: FinanceInvoiceDetail | null;
 }) {
   if (!invoice) {
     return (

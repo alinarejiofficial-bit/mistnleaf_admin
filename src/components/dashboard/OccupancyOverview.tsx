@@ -1,14 +1,18 @@
-import { occupancyOverview } from "@/lib/data";
+"use client";
+
+import { useOps } from "@/components/ops/OpsProvider";
 
 export function OccupancyOverview() {
   const {
-    occupancyPercent,
-    available,
-    occupied,
-    reserved,
-    outOfOrder,
-    totalInventory,
-  } = occupancyOverview;
+    occupancy: {
+      occupancyPercent,
+      available,
+      occupied,
+      reserved,
+      outOfOrder,
+      totalInventory,
+    },
+  } = useOps();
 
   const circumference = 2 * Math.PI * 54;
   const offset = circumference - (occupancyPercent / 100) * circumference;

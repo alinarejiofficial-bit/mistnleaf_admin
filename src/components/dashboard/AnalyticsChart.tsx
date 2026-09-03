@@ -10,9 +10,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { analyticsSeries, formatINR } from "@/lib/data";
+import { useOps } from "@/components/ops/OpsProvider";
+import { formatINR } from "@/lib/data";
 
 export function AnalyticsChart() {
+  const { analytics } = useOps();
   return (
     <section className="animate-fade-up-delay-3 rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:p-6">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -34,7 +36,7 @@ export function AnalyticsChart() {
 
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={analyticsSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <AreaChart data={analytics} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="bookingsFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#2f6b56" stopOpacity={0.28} />

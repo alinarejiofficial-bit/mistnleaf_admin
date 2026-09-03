@@ -10,6 +10,34 @@ export type CmsExperience = {
   status: PublishStatus;
 };
 
+export type CmsHomepageSectionBand = {
+  eyebrow: string;
+  title: string;
+  lead: string;
+  viewAllLabel: string;
+  /** Controls whether this band appears on the public homepage. */
+  status: PublishStatus;
+};
+
+export type CmsHomepageLocationBand = {
+  eyebrow: string;
+  title: string;
+  lead: string;
+  directionsLabel: string;
+  status: PublishStatus;
+};
+
+export type CmsHomepageBands = {
+  rooms: CmsHomepageSectionBand;
+  experiences: CmsHomepageSectionBand;
+  amenities: CmsHomepageSectionBand;
+  gallery: CmsHomepageSectionBand;
+  offers: CmsHomepageSectionBand;
+  testimonials: Pick<CmsHomepageSectionBand, "eyebrow" | "title" | "lead" | "status">;
+  faqs: CmsHomepageSectionBand;
+  location: CmsHomepageLocationBand;
+};
+
 export type CmsHomepage = {
   heroEyebrow: string;
   heroHeadline: string;
@@ -20,6 +48,12 @@ export type CmsHomepage = {
   heroCtaSecondary: string;
   featuredRoomIds: string[];
   featuredOfferIds: string[];
+  featuredExperienceIds: string[];
+  featuredAmenityIds: string[];
+  featuredTestimonialIds: string[];
+  homepageGalleryImageIds: string[];
+  homepageFaqIds: string[];
+  bands: CmsHomepageBands;
   status: PublishStatus;
   updatedAt: string;
 };
@@ -30,8 +64,42 @@ export type CmsAbout = {
   content: string;
   imageUrl: string;
   ctaLabel: string;
+  /** Standalone /about page hero eyebrow */
+  pageEyebrow: string;
+  /** Standalone /about page hero lead */
+  lead: string;
+  storyEyebrow: string;
+  storyTitle: string;
+  storyHtml: string;
+  storyImageUrl: string;
+  pillarsEyebrow: string;
+  pillarsTitle: string;
+  pillars: CmsAboutPillar[];
+  atmosphereEyebrow: string;
+  atmosphereTitle: string;
+  atmosphereLead: string;
+  mosaic: CmsAboutMosaicItem[];
+  placeEyebrow: string;
+  placeTitle: string;
+  placeLead: string;
+  placeMeta: string;
+  placeCtaLabel: string;
+  placeDirectionsLabel: string;
+  placeImageUrl: string;
   status: PublishStatus;
   updatedAt: string;
+};
+
+export type CmsAboutPillar = {
+  id: string;
+  title: string;
+  copy: string;
+};
+
+export type CmsAboutMosaicItem = {
+  id: string;
+  imageUrl: string;
+  caption: string;
 };
 
 export type CmsAmenity = {
@@ -258,6 +326,68 @@ export const defaultCmsContent: CmsContent = {
     heroCtaSecondary: "Explore rooms",
     featuredRoomIds: ["cms-room-1", "cms-room-2", "cms-room-3"],
     featuredOfferIds: ["cms-offer-1", "cms-offer-2", "cms-offer-3"],
+    featuredExperienceIds: [],
+    featuredAmenityIds: ["amen-4", "amen-5", "amen-6"],
+    featuredTestimonialIds: ["tst-1", "tst-2", "tst-3"],
+    homepageGalleryImageIds: ["gal-1", "gal-2", "gal-3"],
+    homepageFaqIds: [],
+    bands: {
+      rooms: {
+        eyebrow: "Stay",
+        title: "Featured Rooms",
+        lead: "Suites and cottages shaped for rest, with forest light and soft linens.",
+        viewAllLabel: "View all rooms",
+        status: "Published",
+      },
+      experiences: {
+        eyebrow: "Do",
+        title: "Experiences",
+        lead: "Optional rituals for your stay — walks, tea, and quiet evenings.",
+        viewAllLabel: "All experiences",
+        status: "Published",
+      },
+      amenities: {
+        eyebrow: "Comforts",
+        title: "Amenities",
+        lead: "Shared spaces for rest between walks, meals, and quiet hours.",
+        viewAllLabel: "Explore amenities",
+        status: "Published",
+      },
+      gallery: {
+        eyebrow: "Look",
+        title: "A quiet visual diary",
+        lead: "Soft light through glass, mist in the trees, and rooms shaped for unhurried mornings.",
+        viewAllLabel: "Full gallery",
+        status: "Published",
+      },
+      offers: {
+        eyebrow: "Packages",
+        title: "Offers & Packages",
+        lead: "Thoughtful combinations of stay, meals, and experiences.",
+        viewAllLabel: "View offers",
+        status: "Published",
+      },
+      testimonials: {
+        eyebrow: "Guests",
+        title: "Guest Testimonials",
+        lead: "Words from travellers who stayed among the mist and leaves.",
+        status: "Published",
+      },
+      faqs: {
+        eyebrow: "Help",
+        title: "Frequently asked questions",
+        lead: "Quick answers before you arrive — check-in, transfers, dining, and more.",
+        viewAllLabel: "View all FAQs",
+        status: "Published",
+      },
+      location: {
+        eyebrow: "Location",
+        title: "Above the valley in Munnar",
+        lead: "Nestled near Whispering Pines — close enough to town, far enough for quiet.",
+        directionsLabel: "Get directions",
+        status: "Published",
+      },
+    },
     status: "Published",
     updatedAt: today,
   },
@@ -268,6 +398,48 @@ export const defaultCmsContent: CmsContent = {
       "<p>Mistnleaf sits above the valley where morning fog settles between the trees. We keep the stay intentionally small — thoughtful rooms, seasonal dining, and hospitality that feels personal.</p>",
     imageUrl: "",
     ctaLabel: "Read our story",
+    pageEyebrow: "Our story",
+    lead: "A small retreat above the Munnar valley — shaped by mist, leaf, and the wish for unhurried days.",
+    storyEyebrow: "Beginnings",
+    storyTitle: "Rebuilt slowly for quieter stays",
+    storyHtml:
+      "<p>Mistnleaf began as a family lodge nestled in the hills of Munnar. We rebuilt it slowly — fewer rooms, better light, and hospitality that feels personal rather than performative.</p><p>Today we welcome guests who want quiet mornings, forest walks, and meals drawn from local farms and tea estates. Everything here is intentionally small so attention can stay close.</p><p>Whether you stay one night or a week, our aim is simple: give you space to breathe between the mist and the leaves.</p>",
+    storyImageUrl: "",
+    pillarsEyebrow: "How we host",
+    pillarsTitle: "What we keep close",
+    pillars: [
+      {
+        id: "about-pillar-1",
+        title: "Intentionally small",
+        copy: "Fewer rooms mean quieter mornings, closer care, and a stay that never feels hurried.",
+      },
+      {
+        id: "about-pillar-2",
+        title: "Forest first",
+        copy: "Paths, mist, and canopy light shape the day — we build around the landscape, not over it.",
+      },
+      {
+        id: "about-pillar-3",
+        title: "Personal hospitality",
+        copy: "Meals, walks, and quiet hours arranged with attention, not a script.",
+      },
+    ],
+    atmosphereEyebrow: "Atmosphere",
+    atmosphereTitle: "Light through glass, mist in the trees",
+    atmosphereLead:
+      "Lodge mornings, tea-hill afternoons, and evenings when the valley softens into fog.",
+    mosaic: [
+      { id: "about-mosaic-1", imageUrl: "", caption: "Tea hills beyond the lodge" },
+      { id: "about-mosaic-2", imageUrl: "", caption: "Canopy light indoors" },
+      { id: "about-mosaic-3", imageUrl: "", caption: "Valley mist at dusk" },
+    ],
+    placeEyebrow: "Find us",
+    placeTitle: "Above the valley in Munnar",
+    placeLead: "",
+    placeMeta: "Front desk · 8:00 AM – 10:00 PM",
+    placeCtaLabel: "Book your stay",
+    placeDirectionsLabel: "Get directions",
+    placeImageUrl: "",
     status: "Published",
     updatedAt: today,
   },
@@ -613,19 +785,17 @@ export const defaultCmsContent: CmsContent = {
     copyright: "© 2026 Mistnleaf. Nature in every breath.",
     exploreLinks: [
       { label: "About", href: "/about" },
-      { label: "Rooms", href: "#rooms" },
-      { label: "Experiences", href: "#experiences" },
-      { label: "Amenities", href: "#amenities" },
-      { label: "Dining", href: "#dining" },
-      { label: "Gallery", href: "#gallery" },
+      { label: "Rooms", href: "/rooms" },
+      { label: "Experiences", href: "/experiences" },
+      { label: "Amenities", href: "/amenities" },
+      { label: "Dining", href: "/dining" },
+      { label: "Gallery", href: "/gallery" },
     ],
     planLinks: [
-      { label: "Offers", href: "#offers" },
-      { label: "Things to Do", href: "#experiences" },
-      { label: "Site guide", href: "#location" },
-      { label: "FAQs", href: "#faqs" },
-      { label: "Contact / Enquiry", href: "#contact" },
-      { label: "Check availability", href: "#book" },
+      { label: "Offers", href: "/offers" },
+      { label: "FAQs", href: "/faqs" },
+      { label: "Contact", href: "/contact" },
+      { label: "Check availability", href: "/booking/search" },
     ],
     policyLinks: [
       { label: "Privacy Policy", href: "/privacy" },

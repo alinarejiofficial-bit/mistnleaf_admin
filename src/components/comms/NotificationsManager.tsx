@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useOps } from "@/components/ops/OpsProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
 import {
-  contentManagerNotificationTopics,
+  contentManagerNotificationGroups,
   getNotificationBadgeLabel,
   getNotificationsForRole,
   getNotificationsPageDescription,
@@ -40,8 +41,12 @@ function badgeClassName(notification: AppNotification) {
 
 export function NotificationsManager() {
   const { currentUser } = useAuth();
+  const { notifications } = useOps();
   const roleId = currentUser?.roleId;
-  const seed = useMemo(() => getNotificationsForRole(roleId), [roleId]);
+  const seed = useMemo(() => {
+    if (isContentManagerRole(roleId)) return getNotificationsForRole(roleId);
+    return notifications.length ? notifications : getNotificationsForRole(roleId);
+  }, [roleId, notifications]);
   const [items, setItems] = useState(seed);
 
   useEffect(() => {
@@ -89,23 +94,6 @@ export function NotificationsManager() {
         }
       />
 
-      {isContentManager ? (
-        <SectionCard title="What you'll be notified about">
-          <div className="grid gap-4 px-5 py-4 sm:grid-cols-2 xl:grid-cols-3">
-            {contentManagerNotificationTopics.map((topic) => (
-              <div key={topic.group} className="rounded-xl border border-border-subtle bg-surface-muted/20 p-4">
-                <p className="text-sm font-medium text-foreground">{topic.group}</p>
-                <ul className="mt-2 space-y-1 text-xs text-muted">
-                  {topic.items.map((item) => (
-                    <li key={item}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-      ) : null}
-
       <div className="grid gap-3 sm:grid-cols-3">
         <StatPill label="Total" value={items.length} />
         <StatPill label="Unread" value={unread} tone="warning" />
@@ -114,12 +102,12 @@ export function NotificationsManager() {
 
       {isContentManager && groupedItems ? (
         <div className="space-y-5">
-          {contentManagerNotificationTopics.map((topic) => {
-            const groupItems = groupedItems.get(topic.group) ?? [];
+          {contentManagerNotificationGroups.map((group) => {
+            const groupItems = groupedItems.get(group) ?? [];
             if (groupItems.length === 0) return null;
 
             return (
-              <SectionCard key={topic.group} title={topic.group}>
+              <SectionCard key={group} title={group}>
                 <NotificationList
                   items={groupItems}
                   onToggleRead={toggleRead}

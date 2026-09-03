@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/Logo";
+import type { MappedSiteContent } from "@/lib/cms/map-to-site";
 import { site } from "@/lib/site";
 
-const explore = [
+const defaultExplore = [
   { href: "/about", label: "About" },
   { href: "/rooms", label: "Rooms" },
   { href: "/experiences", label: "Experiences" },
@@ -14,7 +15,7 @@ const explore = [
   { href: "/gallery", label: "Gallery" },
 ];
 
-const plan = [
+const defaultPlan = [
   { href: "/offers", label: "Offers" },
   { href: "/things-to-do", label: "Things to Do" },
   { href: "/explore", label: "Site guide" },
@@ -23,7 +24,7 @@ const plan = [
   { href: "/booking/search", label: "Check availability" },
 ];
 
-const policies = [
+const defaultPolicies = [
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms & Conditions" },
   { href: "/cancellation", label: "Cancellation Policy" },
@@ -51,17 +52,24 @@ function FooterColumn({
   );
 }
 
-export function Footer() {
+export function Footer({ content }: { content?: MappedSiteContent }) {
   const pathname = usePathname();
   if (pathname.startsWith("/staff")) return null;
 
+  const siteInfo = content?.site ?? site;
+  const footer = content?.footer;
+  const contact = content?.contact;
+  const explore = footer?.exploreLinks ?? defaultExplore;
+  const plan = footer?.planLinks ?? defaultPlan;
+  const policies = footer?.policyLinks ?? defaultPolicies;
+
   return (
-    <footer className="site-footer">
+    <footer className="site-footer relative">
       <div className="site-footer__inner">
         <div className="site-footer__brand">
           <Logo size="footer" variant="light" href={null} />
-          <p className="site-footer__tagline">{site.tagline}</p>
-          <p className="site-footer__about">{site.description}</p>
+          <p className="site-footer__tagline">{footer?.tagline ?? siteInfo.tagline}</p>
+          <p className="site-footer__about">{footer?.description ?? siteInfo.description}</p>
         </div>
 
         <div className="site-footer__col">
@@ -69,17 +77,21 @@ export function Footer() {
           <address className="site-footer__contact not-italic">
             <p className="site-footer__contact-line">
               <span className="site-footer__contact-label">Address</span>
-              {site.address.line1}
+              {contact?.addressLine1 ?? siteInfo.address.line1}
               <br />
-              {site.address.line2}
+              {contact?.addressLine2 ?? siteInfo.address.line2}
             </p>
             <p className="site-footer__contact-line">
               <span className="site-footer__contact-label">Email</span>
-              <a href={`mailto:${site.email}`}>{site.email}</a>
+              <a href={`mailto:${contact?.email ?? siteInfo.email}`}>
+                {contact?.email ?? siteInfo.email}
+              </a>
             </p>
             <p className="site-footer__contact-line">
               <span className="site-footer__contact-label">Phone</span>
-              <a href={`tel:${site.phone.replace(/\s/g, "")}`}>{site.phone}</a>
+              <a href={`tel:${(contact?.phone ?? siteInfo.phone).replace(/\s/g, "")}`}>
+                {contact?.phone ?? siteInfo.phone}
+              </a>
             </p>
           </address>
         </div>
@@ -90,9 +102,7 @@ export function Footer() {
       </div>
 
       <div className="site-footer__bar">
-        <p>
-          © {new Date().getFullYear()} {site.name}. Nature in every breath.
-        </p>
+        <p>{footer?.copyright ?? `© ${new Date().getFullYear()} ${siteInfo.name}. Nature in every breath.`}</p>
       </div>
     </footer>
   );

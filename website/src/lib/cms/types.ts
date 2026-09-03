@@ -1,0 +1,171 @@
+/** Published CMS snapshot from the admin dashboard API. */
+export type PublishedCmsContent = {
+  homepage: {
+    heroEyebrow: string;
+    heroHeadline: string;
+    heroDescription: string;
+    heroMediaType: "image" | "video";
+    heroMediaUrl: string;
+    heroCtaPrimary: string;
+    heroCtaSecondary: string;
+    featuredRoomIds: string[];
+    featuredOfferIds: string[];
+    featuredExperienceIds?: string[];
+    featuredAmenityIds?: string[];
+    featuredTestimonialIds?: string[];
+    homepageGalleryImageIds?: string[];
+    homepageFaqIds?: string[];
+    bands?: {
+      rooms: { eyebrow: string; title: string; lead: string; viewAllLabel: string };
+      experiences: { eyebrow: string; title: string; lead: string; viewAllLabel: string };
+      amenities: { eyebrow: string; title: string; lead: string; viewAllLabel: string };
+      gallery: { eyebrow: string; title: string; lead: string; viewAllLabel: string };
+      offers: { eyebrow: string; title: string; lead: string; viewAllLabel: string };
+      testimonials: { eyebrow: string; title: string; lead: string };
+      faqs: { eyebrow: string; title: string; lead: string; viewAllLabel: string };
+      location: { eyebrow: string; title: string; lead: string; directionsLabel: string };
+    };
+    status: "Published" | "Draft";
+    updatedAt: string;
+  };
+  about: {
+    eyebrow: string;
+    title: string;
+    content: string;
+    imageUrl: string;
+    ctaLabel: string;
+    pageEyebrow?: string;
+    lead?: string;
+    storyEyebrow?: string;
+    storyTitle?: string;
+    storyHtml?: string;
+    storyImageUrl?: string;
+    pillarsEyebrow?: string;
+    pillarsTitle?: string;
+    pillars?: Array<{ id: string; title: string; copy: string }>;
+    atmosphereEyebrow?: string;
+    atmosphereTitle?: string;
+    atmosphereLead?: string;
+    mosaic?: Array<{ id: string; imageUrl: string; caption: string }>;
+    placeEyebrow?: string;
+    placeTitle?: string;
+    placeLead?: string;
+    placeMeta?: string;
+    placeCtaLabel?: string;
+    placeDirectionsLabel?: string;
+    placeImageUrl?: string;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  };
+  rooms: Array<{
+    id: string;
+    name: string;
+    tagline: string;
+    description: string;
+    priceFrom: number;
+    images: string[];
+    amenities: string[];
+    capacity: number;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  }>;
+  amenities: Array<{
+    id: string;
+    title: string;
+    description: string;
+    imageUrl: string;
+    sortOrder: number;
+    status: "Published" | "Draft";
+  }>;
+  experiences: Array<{
+    id: string;
+    title: string;
+    description: string;
+    duration: string;
+    imageUrl: string;
+    sortOrder: number;
+    status: "Published" | "Draft";
+  }>;
+  galleryImages: Array<{
+    id: string;
+    categoryId: string;
+    title: string;
+    caption: string;
+    imageUrl: string;
+    sortOrder: number;
+    status: "Published" | "Draft";
+  }>;
+  offers: Array<{
+    id: string;
+    title: string;
+    description: string;
+    details: string;
+    priceFrom: number;
+    terms: string[];
+    bookCtaLabel: string;
+    bookCtaHref: string;
+    sortOrder: number;
+    active: boolean;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  }>;
+  offersSection: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    viewAllLabel: string;
+    viewAllHref: string;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  };
+  testimonials: Array<{
+    id: string;
+    guestName: string;
+    guestLocation: string;
+    initials: string;
+    content: string;
+    rating: number;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  }>;
+  faqs: Array<{
+    id: string;
+    question: string;
+    answer: string;
+    sortOrder: number;
+    status: "Published" | "Draft";
+  }>;
+  contact: {
+    phone: string;
+    email: string;
+    address: string;
+    whatsapp: string;
+    checkInNote: string;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  };
+  location: {
+    title: string;
+    description: string;
+    address: string;
+    airportNote: string;
+    directionsUrl: string;
+    mapEmbedUrl: string;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  };
+  footer: {
+    brandEyebrow: string;
+    brandDescription: string;
+    tagline: string;
+    copyright: string;
+    exploreLinks: Array<{ label: string; href: string }>;
+    planLinks: Array<{ label: string; href: string }>;
+    policyLinks: Array<{ label: string; href: string }>;
+    staffLoginLabel: string;
+    staffLoginHref: string;
+    status: "Published" | "Draft";
+    updatedAt: string;
+  };
+  publishedAt: string;
+};

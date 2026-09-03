@@ -23,7 +23,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const visibleSections = baseSections
     .map((section) => ({
       ...section,
-      items: roleId ? filterByRouteAccess(roleId, section.items) : section.items,
+      items: roleId
+        ? filterByRouteAccess(roleId, section.items, currentUser?.permissions)
+        : section.items,
     }))
     .filter((section) => section.items.length > 0);
 
@@ -31,6 +33,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const isHousekeeping = roleId === "housekeeping";
   const isAccountant = roleId === "accountant";
   const isWebsiteContentManager = roleId === "website_content_manager";
+  const isSuperAdmin = roleId === "super_administrator";
 
   return (
     <>
@@ -43,11 +46,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-sidebar text-sidebar-text transition-transform duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-border-subtle bg-sidebar text-sidebar-text transition-transform duration-300 lg:static lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-[4.5rem] items-center justify-between border-b border-white/8 px-3">
+        <div className="flex h-[4.5rem] items-center justify-between border-b border-border-subtle px-3">
           <Link
             href="/"
             className="flex min-w-0 flex-1 items-center"
@@ -58,7 +61,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </Link>
           <button
             type="button"
-            className="rounded-lg p-1.5 text-sidebar-text hover:bg-white/10 lg:hidden"
+            className="rounded-lg p-1.5 text-sidebar-text hover:bg-surface-muted lg:hidden"
             onClick={onClose}
             aria-label="Close sidebar"
           >
@@ -70,10 +73,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           {visibleSections.map((section, sectionIndex) => (
             <div key={sectionIndex} className={sectionIndex > 0 ? "mt-4" : ""}>
               {sectionIndex > 0 && (
-                <div className="mb-3 border-t border-white/8" />
+                <div className="mb-3 border-t border-border-subtle" />
               )}
               {section.title ? (
-                <p className="mb-2 px-3 text-[11px] font-medium tracking-[0.12em] text-sidebar-text/60 uppercase">
+                <p className="mb-2 px-3 text-[11px] font-medium tracking-[0.12em] text-muted uppercase">
                   {section.title}
                 </p>
               ) : null}
@@ -92,13 +95,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         onClick={onClose}
                         className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                           active
-                            ? "bg-sidebar-active font-medium text-white shadow-[inset_3px_0_0_0_#6fad92]"
-                            : "text-sidebar-text hover:bg-white/6 hover:text-white"
+                            ? "bg-sidebar-active font-medium text-brand shadow-[inset_3px_0_0_0_var(--brand-mid)]"
+                            : "text-sidebar-text hover:bg-surface-muted hover:text-foreground"
                         }`}
                       >
                         <Icon
                           className={`h-[18px] w-[18px] shrink-0 ${
-                            active ? "text-[#9dceb8]" : "text-sidebar-text/80"
+                            active ? "text-brand-mid" : "text-muted"
                           }`}
                           strokeWidth={1.9}
                         />
@@ -112,10 +115,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           ))}
         </nav>
 
-        <div className="border-t border-white/8 p-4">
-          <div className="rounded-xl bg-white/6 px-3 py-3 ring-1 ring-white/8">
-            <p className="font-display text-sm text-white">
-              {isWebsiteContentManager
+        <div className="border-t border-border-subtle p-4">
+          <div className="rounded-xl bg-surface-muted px-3 py-3 ring-1 ring-border-subtle">
+            <p className="font-display text-sm text-foreground">
+              {isSuperAdmin
+                ? "System administration"
+                : isWebsiteContentManager
                 ? "Website CMS"
                 : isAccountant
                 ? "Finance"
@@ -125,8 +130,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                     ? "Front desk"
                     : "Property ops"}
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-sidebar-text/80">
-              {isWebsiteContentManager
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              {isSuperAdmin
+                ? "Full control of users, roles, operations, CMS, and system settings."
+                : isWebsiteContentManager
                 ? "Homepage, rooms, gallery, offers, and public content."
                 : isAccountant
                 ? "Payments, invoices, refunds, and financial reports."

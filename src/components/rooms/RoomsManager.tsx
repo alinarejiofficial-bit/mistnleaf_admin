@@ -14,6 +14,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { useOps } from "@/components/ops/OpsProvider";
 import { RoomInventoryModal } from "@/components/rooms/RoomInventoryModal";
 import { RoomStatusModal } from "@/components/rooms/RoomStatusModal";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
@@ -25,9 +26,8 @@ import {
 } from "@/lib/reservations";
 import {
   getRoomStatusCounts,
-  rooms as seedRooms,
   roomStatusStyles,
-  roomTypes,
+  roomTypes as fallbackRoomTypes,
   type Room,
   type RoomStatus,
   type RoomType,
@@ -46,11 +46,22 @@ const statusFilters: StatusFilter[] = [
 ];
 
 export function RoomsManager() {
-  const [rooms, setRooms] = useState<Room[]>(seedRooms);
+  const {
+    rooms,
+    bookings,
+    hkTasks,
+    maintenance,
+    roomTypeNames,
+    addRoom,
+    saveRoom,
+    saveRoomStatus,
+    error,
+  } = useOps();
+  const types = roomTypeNames.length ? roomTypeNames : fallbackRoomTypes;
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("All");
   const [type, setType] = useState<"All" | RoomType>("All");
-  const [selectedId, setSelectedId] = useState<string | null>(seedRooms[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [roomModal, setRoomModal] = useState<Room | "new" | null>(null);
   const [statusModalRoom, setStatusModalRoom] = useState<Room | null>(null);
   const { showToast, toast } = useFloatingToast();
@@ -87,21 +98,27 @@ export function RoomsManager() {
     setRoomModal(room);
   }
 
-  function saveRoom(room: Room) {
+  async function persistRoom(room: Room) {
     const isUpdate = rooms.some((item) => item.id === room.id);
-    setRooms((prev) => {
-      if (isUpdate) {
-        return prev.map((item) => (item.id === room.id ? room : item));
-      }
-      return [...prev, room];
-    });
-    setSelectedId(room.id);
-    showToast(isUpdate ? "Room updated." : "Room added.");
+    try {
+      if (isUpdate) await saveRoom(room);
+      else await addRoom(room);
+      setSelectedId(room.id);
+      showToast(isUpdate ? "Room updated." : "Room added.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not save room.";
+      showToast(message);
+      throw err instanceof Error ? err : new Error(message);
+    }
   }
 
-  function updateRoomStatus(room: Room) {
-    setRooms((prev) => prev.map((item) => (item.id === room.id ? room : item)));
-    showToast(`${room.name} marked as ${room.status}.`);
+  async function persistRoomStatus(room: Room) {
+    try {
+      await saveRoomStatus(room);
+      showToast(`${room.name} marked as ${room.status}.`);
+    } catch {
+      showToast("Could not update room status.");
+    }
   }
 
   return (
@@ -122,6 +139,12 @@ export function RoomsManager() {
           </PermissionGate>
         }
       />
+
+      {error ? (
+        <p className="rounded-2xl border border-danger/20 bg-[#f8e9e6]/80 px-5 py-3 text-sm text-danger">
+          {error} Sign out and sign in again while Django is running on port 3001 so rooms load from the live database.
+        </p>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <StatPill label="Total" value={counts.total} />
@@ -152,7 +175,7 @@ export function RoomsManager() {
             className="h-11 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
           >
             <option value="All">All types</option>
-            {roomTypes.map((roomType) => (
+            {types.map((roomType) => (
               <option key={roomType} value={roomType}>
                 {roomType}
               </option>
@@ -265,6 +288,9 @@ export function RoomsManager() {
           room={selected}
           onEdit={openEditRoom}
           onUpdateStatus={setStatusModalRoom}
+          bookings={bookings}
+          hkTasks={hkTasks}
+          maintenance={maintenance}
         />
       </div>
 
@@ -273,15 +299,16 @@ export function RoomsManager() {
         room={roomModal === "new" ? null : roomModal}
         isNew={roomModal === "new"}
         existingRooms={rooms}
+        roomTypesList={types}
         onClose={() => setRoomModal(null)}
-        onSave={saveRoom}
+        onSave={persistRoom}
       />
 
       <RoomStatusModal
         open={statusModalRoom !== null}
         room={statusModalRoom}
         onClose={() => setStatusModalRoom(null)}
-        onSave={updateRoomStatus}
+        onSave={persistRoomStatus}
       />
 
       {toast}
@@ -319,10 +346,16 @@ function RoomDetailsPanel({
   room,
   onEdit,
   onUpdateStatus,
+  bookings,
+  hkTasks,
+  maintenance,
 }: {
   room: Room | null;
   onEdit: (room: Room) => void;
   onUpdateStatus: (room: Room) => void;
+  bookings: import("@/lib/reservations").Reservation[];
+  hkTasks: import("@/lib/ops-data").HousekeepingTask[];
+  maintenance: import("@/lib/ops-data").MaintenanceTicket[];
 }) {
   if (!room) {
     return (
@@ -332,7 +365,7 @@ function RoomDetailsPanel({
     );
   }
 
-  const linked = getRoomLinkedData(room);
+  const linked = getRoomLinkedData(room, bookings, hkTasks, maintenance);
   const { reservation } = linked;
 
   return (

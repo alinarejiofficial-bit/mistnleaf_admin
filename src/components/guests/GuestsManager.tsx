@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import { guests, formatINR, payments, type Guest } from "@/lib/ops-data";
+import { useOps } from "@/components/ops/OpsProvider";
+import { formatINR, type Guest } from "@/lib/ops-data";
 import { formatDisplayDate } from "@/lib/data";
-import { reservations } from "@/lib/reservations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
 
@@ -16,8 +16,9 @@ const statusStyles = {
 };
 
 export function GuestsManager() {
+  const { guests, bookings, payments } = useOps();
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(guests[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -124,13 +125,21 @@ export function GuestsManager() {
             </table>
           </div>
         </SectionCard>
-        <GuestPanel guest={selected} />
+        <GuestPanel guest={selected} bookings={bookings} payments={payments} />
       </div>
     </div>
   );
 }
 
-function GuestPanel({ guest }: { guest: Guest | null }) {
+function GuestPanel({
+  guest,
+  bookings,
+  payments,
+}: {
+  guest: Guest | null;
+  bookings: import("@/lib/reservations").Reservation[];
+  payments: import("@/lib/ops-data").Payment[];
+}) {
   if (!guest) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted">
@@ -139,7 +148,7 @@ function GuestPanel({ guest }: { guest: Guest | null }) {
     );
   }
 
-  const guestBookings = reservations.filter((r) => r.guest === guest.name);
+  const guestBookings = bookings.filter((r) => r.guest === guest.name);
   const guestPayments = payments.filter((p) => p.guest === guest.name);
   const currentBooking = guestBookings.find(
     (r) => r.status === "Checked-in" || r.status === "Confirmed",

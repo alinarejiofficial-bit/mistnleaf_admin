@@ -4,11 +4,14 @@ import Link from "next/link";
 import { LayoutGrid, LogOut, Pencil } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { canEditCmsContent } from "@/lib/cms-api-auth";
+import { getPublicWebsiteUrl } from "@/lib/public-site-nav";
 
 export function PublicSiteEditorToolbar() {
   const { currentUser, logout } = useAuth();
+  const isPublicSite = process.env.NEXT_PUBLIC_PUBLIC_SITE === "true";
+  const adminDashboardHref = isPublicSite ? "http://localhost:3000/website/homepage" : "/website/homepage";
 
-  if (!currentUser || !canEditCmsContent(currentUser.roleId)) return null;
+  if (!currentUser || !canEditCmsContent(currentUser.roleId, currentUser.permissions)) return null;
 
   return (
     <div className="border-b border-[#9dceb8]/25 bg-[#1b4d3e]/95 text-white backdrop-blur-md">
@@ -22,7 +25,15 @@ export function PublicSiteEditorToolbar() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href="/website/homepage"
+            href={getPublicWebsiteUrl("/")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs font-medium hover:bg-white/10 sm:text-sm"
+          >
+            View site
+          </Link>
+          <Link
+            href={adminDashboardHref}
+            target={isPublicSite ? "_blank" : undefined}
+            rel={isPublicSite ? "noopener noreferrer" : undefined}
             className="inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs font-medium hover:bg-white/10 sm:text-sm"
           >
             <LayoutGrid className="h-3.5 w-3.5" />

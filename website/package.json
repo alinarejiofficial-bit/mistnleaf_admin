@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env NEXT_PUBLIC_CMS_API_URL=http://localhost:3000 NEXT_PUBLIC_CMS_ADMIN_URL=http://localhost:3000 next dev --webpack -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -34,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",

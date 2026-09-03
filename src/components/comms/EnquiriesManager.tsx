@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import { enquiries } from "@/lib/ops-data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
+import {
+  fetchStaffEnquiries,
+  updateStaffEnquiry,
+  type StaffEnquiry,
+} from "@/lib/staff-api-client";
 
 const statusStyles = {
   New: "bg-brand-soft text-brand",
@@ -14,47 +17,72 @@ const statusStyles = {
 };
 
 export function EnquiriesManager() {
-  const [filter, setFilter] = useState<"All" | "New" | "In progress" | "Closed">(
-    "All",
-  );
+  const [filter, setFilter] = useState<"All" | "New" | "In progress" | "Closed">("All");
+  const [enquiries, setEnquiries] = useState<StaffEnquiry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await fetchStaffEnquiries();
+      setEnquiries(items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load enquiries from the backend.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
   const filtered = useMemo(
-    () => enquiries.filter((e) => (filter === "All" ? true : e.status === filter)),
-    [filter],
+    () => enquiries.filter((item) => (filter === "All" ? true : item.status === filter)),
+    [filter, enquiries],
   );
+
+  async function setStatus(id: string, status: StaffEnquiry["status"]) {
+    setBusyId(id);
+    try {
+      const updated = await updateStaffEnquiry(id, { status });
+      setEnquiries((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update enquiry.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Enquiries"
-        description="Inbound website, phone, and email booking requests."
-        action={
-          <PermissionGate action="enquiries.manage">
-            <button
-              type="button"
-              onClick={() => window.alert("New enquiry form (demo).")}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
-            >
-              <Plus className="h-4 w-4" />
-              New enquiry
-            </button>
-          </PermissionGate>
-        }
+        description="Inbound website, phone, and email requests from the public site."
       />
+      {error ? (
+        <p className="rounded-xl border border-danger/30 bg-[#f8e9e6] px-4 py-3 text-sm text-danger">
+          {error} Sign in again if your session expired.
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-4">
         <StatPill label="Total" value={enquiries.length} />
         <StatPill
           label="New"
-          value={enquiries.filter((e) => e.status === "New").length}
+          value={enquiries.filter((item) => item.status === "New").length}
           tone="brand"
         />
         <StatPill
           label="In progress"
-          value={enquiries.filter((e) => e.status === "In progress").length}
+          value={enquiries.filter((item) => item.status === "In progress").length}
           tone="info"
         />
         <StatPill
           label="Closed"
-          value={enquiries.filter((e) => e.status === "Closed").length}
+          value={enquiries.filter((item) => item.status === "Closed").length}
           tone="success"
         />
       </div>
@@ -74,9 +102,19 @@ export function EnquiriesManager() {
             {item}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-surface-muted"
+        >
+          Refresh
+        </button>
       </div>
 
-      <SectionCard title="Enquiry inbox" description={`${filtered.length} requests`}>
+      <SectionCard
+        title="Enquiry inbox"
+        description={loading ? "Loading…" : `${filtered.length} requests from the website backend`}
+      >
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-surface-muted/60 text-xs tracking-wide text-muted uppercase">
@@ -100,27 +138,29 @@ export function EnquiriesManager() {
                   <td className="px-5 py-3.5">{enquiry.channel}</td>
                   <td className="px-5 py-3.5 text-muted">{enquiry.receivedAt}</td>
                   <td className="px-5 py-3.5">
-                    <Badge className={statusStyles[enquiry.status]}>
-                      {enquiry.status}
-                    </Badge>
+                    <Badge className={statusStyles[enquiry.status]}>{enquiry.status}</Badge>
                   </td>
                   <td className="px-5 py-3.5">
                     <PermissionGate action="enquiries.manage">
                       <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => window.alert("Follow up sent (demo).")}
-                          className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium hover:bg-surface-muted"
-                        >
-                          Follow up
-                        </button>
+                        {enquiry.status === "New" ? (
+                          <button
+                            type="button"
+                            disabled={busyId === enquiry.id}
+                            onClick={() => void setStatus(enquiry.id, "In progress")}
+                            className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium hover:bg-surface-muted"
+                          >
+                            Start
+                          </button>
+                        ) : null}
                         {enquiry.status !== "Closed" ? (
                           <button
                             type="button"
-                            onClick={() => window.alert("Converted to booking (demo).")}
+                            disabled={busyId === enquiry.id}
+                            onClick={() => void setStatus(enquiry.id, "Closed")}
                             className="rounded-lg bg-brand px-2.5 py-1 text-xs font-medium text-white hover:bg-brand-hover"
                           >
-                            Convert
+                            Close
                           </button>
                         ) : null}
                       </div>
@@ -128,8 +168,8 @@ export function EnquiriesManager() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 ? (
-                <EmptyRow colSpan={6} label="No enquiries." />
+              {!loading && filtered.length === 0 ? (
+                <EmptyRow colSpan={6} label="No enquiries from the website yet." />
               ) : null}
             </tbody>
           </table>

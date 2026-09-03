@@ -2,26 +2,31 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCms } from "@/components/cms/CmsProvider";
 import {
   MediaUrlField,
   PreviewButton,
-  PublishBadge,
+  PublishStatusField,
+  ToastPortal,
   useToast,
 } from "@/components/cms/CmsShared";
-import { togglePublishStatus, type CmsHomepage } from "@/lib/cms-data";
+import type { CmsHomepage } from "@/lib/cms-data";
 
 type PreviewHandler = (section: string, data?: unknown) => void;
 
 export function HomepageHeroEditor({ onPreview }: { onPreview: PreviewHandler }) {
   const { content, saveHomepage } = useCms();
-  const { toast, showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [homepage, setHomepage] = useState<CmsHomepage>(content.homepage);
+
+  useEffect(() => {
+    setHomepage(content.homepage);
+  }, [content.homepage]);
 
   function save() {
     saveHomepage({ ...homepage, updatedAt: new Date().toISOString().slice(0, 10) });
-    showSuccess("Hero banner saved.");
+    showSuccess("Hero banner saved. Check http://localhost:3001 (Ctrl+F5) — status must be Published.");
   }
 
   return (
@@ -101,35 +106,22 @@ export function HomepageHeroEditor({ onPreview }: { onPreview: PreviewHandler })
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-surface p-4">
-        <span className="text-sm font-medium text-foreground">Publish status</span>
-        <PublishBadge status={homepage.status} />
-        <button
-          type="button"
-          onClick={() =>
-            setHomepage({
-              ...homepage,
-              status: togglePublishStatus(homepage.status),
-            })
-          }
-          className="rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-surface-muted"
-        >
-          {homepage.status === "Published" ? "Unpublish" : "Publish"}
-        </button>
+      <PublishStatusField
+        status={homepage.status}
+        onChange={(status) => setHomepage({ ...homepage, status })}
+      />
+
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={save}
-          className="ml-auto rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+          className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
         >
           Save changes
         </button>
       </div>
 
-      {toast ? (
-        <div className="fixed right-4 bottom-4 z-[70] rounded-xl bg-brand px-4 py-3 text-sm text-white shadow-lg">
-          {toast.message}
-        </div>
-      ) : null}
+      <ToastPortal toast={toast} onClose={clearToast} />
     </div>
   );
 }

@@ -5,15 +5,16 @@ import { PermissionGate } from "@/components/auth/PermissionGate";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FinanceGreeting } from "@/components/finance/FinanceGreeting";
 import {
-  financeRefunds,
   formatINR,
   refundStatusStyles,
 } from "@/lib/finance-data";
+import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyRow, SectionCard } from "@/components/ui/ModulePrimitives";
 
 export function RefundsManager() {
+  const { financeRefunds, saveBooking } = useOps();
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const confirmRefund = financeRefunds.find((r) => r.id === confirmId);
 
@@ -103,8 +104,14 @@ export function RefundsManager() {
         danger
         onCancel={() => setConfirmId(null)}
         onConfirm={() => {
+          if (confirmRefund) {
+            void saveBooking(confirmRefund.bookingId, {
+              paymentStatus: "Refunded",
+              status: "Cancelled",
+              paidAmount: 0,
+            });
+          }
           setConfirmId(null);
-          window.alert("Refund processed (demo).");
         }}
       />
     </div>

@@ -3,10 +3,8 @@
 import { useMemo, useState } from "react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
-import {
-  maintenanceTickets as seedTickets,
-  type MaintenanceTicket,
-} from "@/lib/ops-data";
+import { useOps } from "@/components/ops/OpsProvider";
+import { type MaintenanceTicket } from "@/lib/ops-data";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
@@ -33,7 +31,7 @@ function nextMaintenanceStatus(
 }
 
 export function MaintenanceManager() {
-  const [tickets, setTickets] = useState<MaintenanceTicket[]>(seedTickets);
+  const { maintenance: tickets, advanceMaintenance } = useOps();
   const [filter, setFilter] = useState<"All" | "Open" | "In progress" | "Resolved">(
     "All",
   );
@@ -46,14 +44,8 @@ export function MaintenanceManager() {
   );
 
   function advanceStatus(ticketId: string) {
-    setTickets((prev) =>
-      prev.map((ticket) => {
-        if (ticket.id !== ticketId) return ticket;
-        const next = nextMaintenanceStatus(ticket.status);
-        showToast(`${ticket.id} updated to ${next}.`);
-        return { ...ticket, status: next };
-      }),
-    );
+    void advanceMaintenance(ticketId);
+    showToast("Maintenance ticket updated.");
   }
 
   return (

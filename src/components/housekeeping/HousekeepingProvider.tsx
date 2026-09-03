@@ -4,23 +4,19 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
 } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useOps } from "@/components/ops/OpsProvider";
 import {
-  assignedRoomsSeed,
   countByStatus,
   nextStatus,
-  staffMaintenanceReportsSeed,
-  HK_REPORTS_KEY,
-  HK_STORAGE_KEY,
   type AssignedRoom,
   type HousekeepingRoomStatus,
   type MaintenanceIssueCategory,
   type StaffMaintenanceReport,
 } from "@/lib/housekeeping-data";
+import { housekeepingPatchFromStatus } from "@/lib/ops-live";
 
 type HousekeepingContextValue = {
   myRooms: AssignedRoom[];
@@ -39,81 +35,56 @@ type HousekeepingContextValue = {
 
 const HousekeepingContext = createContext<HousekeepingContextValue | null>(null);
 
-function loadRooms(): AssignedRoom[] {
-  if (typeof window === "undefined") return assignedRoomsSeed;
-  try {
-    const raw = window.localStorage.getItem(HK_STORAGE_KEY);
-    if (!raw) return assignedRoomsSeed;
-    const parsed = JSON.parse(raw) as AssignedRoom[];
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : assignedRoomsSeed;
-  } catch {
-    return assignedRoomsSeed;
-  }
-}
-
-function loadReports(): StaffMaintenanceReport[] {
-  if (typeof window === "undefined") return staffMaintenanceReportsSeed;
-  try {
-    const raw = window.localStorage.getItem(HK_REPORTS_KEY);
-    if (!raw) return staffMaintenanceReportsSeed;
-    const parsed = JSON.parse(raw) as StaffMaintenanceReport[];
-    return Array.isArray(parsed) ? parsed : staffMaintenanceReportsSeed;
-  } catch {
-    return staffMaintenanceReportsSeed;
-  }
-}
-
 export function HousekeepingProvider({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
-  const [rooms, setRooms] = useState<AssignedRoom[]>(assignedRoomsSeed);
-  const [reports, setReports] = useState<StaffMaintenanceReport[]>(
-    staffMaintenanceReportsSeed,
-  );
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setRooms(loadRooms());
-    setReports(loadReports());
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(HK_STORAGE_KEY, JSON.stringify(rooms));
-  }, [rooms, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    window.localStorage.setItem(HK_REPORTS_KEY, JSON.stringify(reports));
-  }, [reports, hydrated]);
-
+  const ops = useOps();
   const staffName = currentUser?.name ?? "";
 
-  const myRooms = useMemo(
+  const allRooms = ops.hkRooms;
+  const myRooms = useMemo(() => {
+    const mine = allRooms.filter(
+      (room) =>
+        room.assignee === staffName ||
+        room.assignee.split(" ")[0] === staffName.split(" ")[0],
+    );
+    return mine.length ? mine : allRooms;
+  }, [allRooms, staffName]);
+
+  const reports: StaffMaintenanceReport[] = useMemo(
     () =>
-      rooms.filter(
-        (room) =>
-          room.assignee === staffName ||
-          room.assignee.split(" ")[0] === staffName.split(" ")[0],
-      ),
-    [rooms, staffName],
+      ops.maintenance.map((ticket) => ({
+        id: ticket.id,
+        room: ticket.room,
+        category: "Other" as MaintenanceIssueCategory,
+        description: ticket.issue,
+        reportedBy: ticket.reportedBy,
+        reportedAt: ticket.reportedAt,
+        status: ticket.status === "Resolved" ? "Acknowledged" : "Submitted",
+      })),
+    [ops.maintenance],
   );
 
-  const updateRoomStatus = useCallback((roomId: string, action: string) => {
-    setRooms((prev) =>
-      prev.map((room) =>
-        room.id === roomId
-          ? { ...room, status: nextStatus(room.status, action) }
-          : room,
-      ),
-    );
-  }, []);
+  const updateRoomStatus = useCallback(
+    (roomId: string, action: string) => {
+      const room = allRooms.find((item) => item.id === roomId);
+      if (!room) return;
+      const next = nextStatus(room.status, action);
+      void ops.updateHousekeeping(roomId, housekeepingPatchFromStatus(next));
+    },
+    [allRooms, ops],
+  );
 
-  const updateRoom = useCallback((roomId: string, patch: Partial<AssignedRoom>) => {
-    setRooms((prev) =>
-      prev.map((room) => (room.id === roomId ? { ...room, ...patch } : room)),
-    );
-  }, []);
+  const updateRoom = useCallback(
+    (roomId: string, patch: Partial<AssignedRoom>) => {
+      if (patch.assignee) {
+        void ops.updateHousekeeping(roomId, { assignee: patch.assignee });
+      }
+      if (patch.status) {
+        void ops.updateHousekeeping(roomId, housekeepingPatchFromStatus(patch.status));
+      }
+    },
+    [ops],
+  );
 
   const reportIssue = useCallback(
     (input: {
@@ -121,41 +92,33 @@ export function HousekeepingProvider({ children }: { children: React.ReactNode }
       category: MaintenanceIssueCategory;
       description: string;
     }) => {
-      const report: StaffMaintenanceReport = {
-        id: `SMR-${Date.now().toString().slice(-5)}`,
+      const match = allRooms.find((room) => room.roomNumber === input.room);
+      void ops.reportMaintenance({
         room: input.room,
+        roomId: match?.id,
+        issue: input.description,
         category: input.category,
-        description: input.description,
         reportedBy: staffName || "Housekeeping Staff",
-        reportedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-        status: "Submitted",
-      };
-      setReports((prev) => [report, ...prev]);
+      });
     },
-    [staffName],
+    [allRooms, ops, staffName],
   );
 
   const value = useMemo(
     () => ({
       myRooms,
-      allRooms: rooms,
+      allRooms,
       summary: countByStatus(myRooms),
-      propertySummary: countByStatus(rooms),
-      reports: reports.filter(
-        (r) =>
-          r.reportedBy === staffName ||
-          r.reportedBy.split(" ")[0] === staffName.split(" ")[0],
-      ),
+      propertySummary: countByStatus(allRooms),
+      reports,
       updateRoomStatus,
       updateRoom,
       reportIssue,
     }),
-    [myRooms, rooms, reports, staffName, updateRoomStatus, updateRoom, reportIssue],
+    [myRooms, allRooms, reports, updateRoomStatus, updateRoom, reportIssue],
   );
 
-  return (
-    <HousekeepingContext.Provider value={value}>{children}</HousekeepingContext.Provider>
-  );
+  return <HousekeepingContext.Provider value={value}>{children}</HousekeepingContext.Provider>;
 }
 
 export function useHousekeeping() {

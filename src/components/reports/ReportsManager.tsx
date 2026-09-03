@@ -3,14 +3,15 @@
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import { revenueOverview } from "@/lib/data";
-import { formatINR, reportCards } from "@/lib/ops-data";
+import { useOps } from "@/components/ops/OpsProvider";
+import { formatINR } from "@/lib/ops-data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
 
 type Period = "7d" | "30d" | "90d" | "custom";
 
 export function ReportsManager() {
+  const { summary, occupancy, revenue } = useOps();
   const [period, setPeriod] = useState<Period>("30d");
   const [from, setFrom] = useState("2026-08-01");
   const [to, setTo] = useState("2026-08-20");
@@ -89,15 +90,18 @@ export function ReportsManager() {
       <p className="text-sm text-muted">Showing data for {periodLabel}.</p>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {reportCards.map((card) => (
-          <StatPill key={card.label} label={card.label} value={card.value} />
-        ))}
+        <StatPill label="Occupancy" value={`${occupancy.occupancyPercent}%`} />
+        <StatPill label="Available rooms" value={occupancy.available} tone="success" />
+        <StatPill label="Monthly revenue" value={formatINR(summary.monthlyRevenue)} tone="brand" />
+        <StatPill label="Today's revenue" value={formatINR(summary.todaysRevenue)} tone="success" />
+        <StatPill label="Check-ins today" value={summary.todaysCheckIns} />
+        <StatPill label="Pending bookings" value={summary.pendingReservations} tone="warning" />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <SectionCard title="Revenue by room type">
           <ul className="space-y-3 px-5 py-4">
-            {revenueOverview.byRoomType.map((item) => (
+            {revenue.monthly.byRoomType.map((item) => (
               <li
                 key={item.label}
                 className="flex items-center justify-between rounded-xl bg-surface-muted/50 px-3 py-2.5 text-sm"
@@ -106,11 +110,14 @@ export function ReportsManager() {
                 <span className="font-medium">{formatINR(item.amount)}</span>
               </li>
             ))}
+            {revenue.monthly.byRoomType.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-muted">No collections in this period.</li>
+            ) : null}
           </ul>
         </SectionCard>
         <SectionCard title="Revenue by booking source">
           <ul className="space-y-3 px-5 py-4">
-            {revenueOverview.byBookingSource.map((item) => (
+            {revenue.monthly.byBookingSource.map((item) => (
               <li
                 key={item.label}
                 className="flex items-center justify-between rounded-xl bg-surface-muted/50 px-3 py-2.5 text-sm"

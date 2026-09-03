@@ -4,13 +4,9 @@ import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { FinanceGreeting } from "@/components/finance/FinanceGreeting";
+import { useOps } from "@/components/ops/OpsProvider";
 import {
-  financeReportKpis,
   formatINR,
-  outstandingPaymentReport,
-  paymentStatusReport,
-  revenueByPaymentMethod,
-  revenueOverview,
 } from "@/lib/finance-data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionCard } from "@/components/ui/ModulePrimitives";
@@ -18,9 +14,10 @@ import { SectionCard } from "@/components/ui/ModulePrimitives";
 type Period = "7d" | "30d" | "90d" | "custom";
 
 export function FinancialReportsManager() {
+  const { summary, revenue, financePayments, bookings, today } = useOps();
   const [period, setPeriod] = useState<Period>("30d");
-  const [from, setFrom] = useState("2026-08-01");
-  const [to, setTo] = useState("2026-08-20");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   const periodLabel = useMemo(() => {
     if (period === "custom") return `${from} → ${to}`;
@@ -97,7 +94,11 @@ export function FinancialReportsManager() {
       <p className="text-sm text-muted">Showing data for {periodLabel}.</p>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {financeReportKpis.map((card) => (
+        {[
+          { label: "Monthly revenue", value: formatINR(summary.monthlyRevenue) },
+          { label: "Today's revenue", value: formatINR(summary.todaysRevenue) },
+          { label: "Outstanding", value: formatINR(bookings.reduce((sum, booking) => sum + Math.max(0, booking.amount - booking.paidAmount), 0)) },
+        ].map((card) => (
           <article
             key={card.label}
             className="rounded-2xl border border-border-subtle bg-surface px-4 py-4 shadow-sm"
@@ -111,7 +112,10 @@ export function FinancialReportsManager() {
       <div className="grid gap-4 xl:grid-cols-2">
         <SectionCard title="Revenue by payment method">
           <ul className="space-y-3 px-5 py-4">
-            {revenueByPaymentMethod.map((item) => (
+            {[
+              { label: "Online", amount: revenue.monthly.onlinePayments },
+              { label: "Offline", amount: revenue.monthly.offlinePayments },
+            ].map((item) => (
               <li
                 key={item.label}
                 className="flex items-center justify-between rounded-xl bg-surface-muted/50 px-3 py-2.5 text-sm"
@@ -124,7 +128,7 @@ export function FinancialReportsManager() {
         </SectionCard>
         <SectionCard title="Revenue by room type">
           <ul className="space-y-3 px-5 py-4">
-            {revenueOverview.byRoomType.map((item) => (
+            {revenue.monthly.byRoomType.map((item) => (
               <li
                 key={item.label}
                 className="flex items-center justify-between rounded-xl bg-surface-muted/50 px-3 py-2.5 text-sm"
@@ -150,14 +154,16 @@ export function FinancialReportsManager() {
                 </tr>
               </thead>
               <tbody>
-                {outstandingPaymentReport.map((row) => (
-                  <tr key={row.booking} className="border-t border-border-subtle">
-                    <td className="px-5 py-3.5 font-medium">{row.booking}</td>
+                {bookings
+                  .filter((booking) => booking.amount - booking.paidAmount > 0 && booking.status !== "Cancelled")
+                  .map((row) => (
+                  <tr key={row.id} className="border-t border-border-subtle">
+                    <td className="px-5 py-3.5 font-medium">{row.id}</td>
                     <td className="px-5 py-3.5">{row.guest}</td>
                     <td className="px-5 py-3.5 font-medium text-danger">
-                      {formatINR(row.balance)}
+                      {formatINR(row.amount - row.paidAmount)}
                     </td>
-                    <td className="px-5 py-3.5 text-muted">{row.due}</td>
+                    <td className="px-5 py-3.5 text-muted">{row.checkOut}</td>
                   </tr>
                 ))}
               </tbody>
@@ -175,15 +181,18 @@ export function FinancialReportsManager() {
                 </tr>
               </thead>
               <tbody>
-                {paymentStatusReport.map((row) => (
-                  <tr key={row.status} className="border-t border-border-subtle">
-                    <td className="px-5 py-3.5 font-medium">{row.status}</td>
-                    <td className="px-5 py-3.5">{row.count}</td>
+                {(["Paid", "Partial", "Pending", "Refunded"] as const).map((status) => {
+                  const rows = bookings.filter((booking) => booking.paymentStatus === status);
+                  return (
+                  <tr key={status} className="border-t border-border-subtle">
+                    <td className="px-5 py-3.5 font-medium">{status}</td>
+                    <td className="px-5 py-3.5">{rows.length}</td>
                     <td className="px-5 py-3.5 font-medium">
-                      {formatINR(row.amount)}
+                      {formatINR(rows.reduce((sum, booking) => sum + booking.paidAmount, 0))}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

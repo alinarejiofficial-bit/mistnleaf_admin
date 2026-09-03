@@ -16,11 +16,13 @@ import { BookingOverview } from "@/components/dashboard/BookingOverview";
 import { DashboardQuickActions } from "@/components/dashboard/DashboardQuickActions";
 import { RoleDashboardHeader } from "@/components/dashboard/RoleDashboardHeader";
 import { UpcomingReservations } from "@/components/dashboard/UpcomingReservations";
+import { useOps } from "@/components/ops/OpsProvider";
 import { getDashboardConfig } from "@/lib/dashboard-registry";
-import { dashboardSummary, formatINR } from "@/lib/data";
+import { formatINR } from "@/lib/data";
 
 export function FrontDeskDashboard() {
   const { can, roleId } = usePermissions();
+  const { summary } = useOps();
   const config = roleId ? getDashboardConfig(roleId) : null;
 
   return (
@@ -48,7 +50,7 @@ export function FrontDeskDashboard() {
           <FrontDeskStat
             icon={<CalendarCheck className="h-4 w-4" />}
             label="Check-ins today"
-            value={String(dashboardSummary.todaysCheckIns)}
+            value={String(summary.todaysCheckIns)}
             tone="brand"
             href="/check-in"
             action="checkin.manage"
@@ -56,7 +58,7 @@ export function FrontDeskDashboard() {
           <FrontDeskStat
             icon={<CalendarMinus className="h-4 w-4" />}
             label="Check-outs today"
-            value={String(dashboardSummary.todaysCheckOuts)}
+            value={String(summary.todaysCheckOuts)}
             tone="info"
             href="/check-out"
             action="checkout.manage"
@@ -64,7 +66,7 @@ export function FrontDeskDashboard() {
           <FrontDeskStat
             icon={<Users className="h-4 w-4" />}
             label="Current guests"
-            value={String(dashboardSummary.currentGuests)}
+            value={String(summary.currentGuests)}
             tone="success"
             href="/guests"
             action="guests.view"
@@ -72,7 +74,7 @@ export function FrontDeskDashboard() {
           <FrontDeskStat
             icon={<ClipboardList className="h-4 w-4" />}
             label="Pending reservations"
-            value={String(dashboardSummary.pendingReservations)}
+            value={String(summary.pendingReservations)}
             tone="warning"
             href="/reservations"
             action="bookings.view"
@@ -80,7 +82,7 @@ export function FrontDeskDashboard() {
           <FrontDeskStat
             icon={<BedDouble className="h-4 w-4" />}
             label="Rooms available"
-            value={String(dashboardSummary.availableRooms)}
+            value={String(summary.availableRooms)}
             tone="success"
             href="/calendar"
             action="calendar.view"
@@ -88,7 +90,7 @@ export function FrontDeskDashboard() {
           <FrontDeskStat
             icon={<CreditCard className="h-4 w-4" />}
             label="Today's collections"
-            value={formatINR(dashboardSummary.todaysRevenue)}
+            value={formatINR(summary.todaysRevenue)}
             tone="brand"
             href="/payments"
             action="payments.record"
@@ -102,10 +104,10 @@ export function FrontDeskDashboard() {
           <h3 className="font-display text-xl text-foreground">Room availability</h3>
           <p className="mt-1 text-sm text-muted">Live inventory snapshot for front desk</p>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <AvailabilityPill label="Available" value={dashboardSummary.availableRooms} tone="success" />
-            <AvailabilityPill label="Occupied" value={dashboardSummary.occupiedRooms} tone="brand" />
-            <AvailabilityPill label="Reserved" value={dashboardSummary.reservedRooms} tone="info" />
-            <AvailabilityPill label="Total rooms" value={dashboardSummary.totalRooms} />
+            <AvailabilityPill label="Available" value={summary.availableRooms} tone="success" />
+            <AvailabilityPill label="Occupied" value={summary.occupiedRooms} tone="brand" />
+            <AvailabilityPill label="Reserved" value={summary.reservedRooms} tone="info" />
+            <AvailabilityPill label="Total rooms" value={summary.totalRooms} />
           </div>
           <PermissionGate action="calendar.view">
             <Link

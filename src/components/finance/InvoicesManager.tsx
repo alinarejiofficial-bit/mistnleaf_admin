@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { FileText } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import { formatINR, invoices } from "@/lib/ops-data";
+import { formatINR, type Invoice } from "@/lib/ops-data";
+import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
@@ -16,12 +17,13 @@ const statusStyles = {
 };
 
 export function InvoicesManager() {
+  const { invoices } = useOps();
   const [filter, setFilter] = useState<"All" | "Paid" | "Unpaid" | "Overdue" | "Draft">(
     "All",
   );
   const filtered = useMemo(
     () => invoices.filter((inv) => (filter === "All" ? true : inv.status === filter)),
-    [filter],
+    [filter, invoices],
   );
 
   return (

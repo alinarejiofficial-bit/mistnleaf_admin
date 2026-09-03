@@ -251,7 +251,6 @@ export function nextStatus(
   action: string,
 ): HousekeepingRoomStatus {
   if (action === "Start Cleaning") {
-    if (status === "Dirty") return "Cleaning Required";
     return "Cleaning in Progress";
   }
   if (action === "Mark Clean" || action === "Continue") {

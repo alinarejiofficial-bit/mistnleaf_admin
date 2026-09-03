@@ -4,18 +4,21 @@ import { useMemo, useState } from "react";
 import { CalendarRange, Download, Plus, Search, Users } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useOps } from "@/components/ops/OpsProvider";
 import {
   formatDisplayDate,
   formatINR,
   getBalanceDue,
   getReservationCounts,
   paymentStatusStyles,
-  reservations as allReservations,
   reservationStatusStyles,
   type BookingSource,
   type Reservation,
   type ReservationStatus,
 } from "@/lib/reservations";
+
+import { todayISO } from "@/lib/ops-live";
+import { roomTypes as fallbackRoomTypes } from "@/lib/rooms";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
 
@@ -39,24 +42,37 @@ const sources: Array<"All" | BookingSource> = [
 ];
 
 export function ReservationsManager() {
-  const [reservations, setReservations] = useState<Reservation[]>(allReservations);
+  const {
+    bookings: reservations,
+    saveBooking,
+    createBooking,
+    rooms,
+    roomTypeNames,
+    source: dataSource,
+  } = useOps();
+  const sourceLabel =
+    dataSource === "api"
+      ? `${reservations.length} bookings from the website backend`
+      : "No website bookings yet";
   const { showToast, toast } = useFloatingToast();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("All");
   const [source, setSource] = useState<"All" | BookingSource>("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(
-    allReservations[0]?.id ?? null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  function updateReservation(id: string, patch: Partial<Reservation>) {
-    setReservations((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    );
+  async function updateReservation(id: string, patch: Partial<Reservation>) {
+    try {
+      await saveBooking(id, patch);
+    } catch {
+      showToast("Could not save booking change to the backend.");
+    }
   }
 
   const counts = getReservationCounts(reservations);
+  const allReservations = reservations;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -86,7 +102,7 @@ export function ReservationsManager() {
     <div className="space-y-6">
       <PageHeader
         title="Reservations"
-        description="Manage bookings, stays, room assignments, and payment status."
+        description={sourceLabel}
         action={
           <div className="flex flex-wrap gap-2">
             <PermissionGate action="bookings.export">
@@ -102,7 +118,7 @@ export function ReservationsManager() {
             <PermissionGate action="bookings.create">
               <button
                 type="button"
-                onClick={() => showToast("Open the new booking form from the calendar or call the guest line.")}
+                onClick={() => setCreateOpen(true)}
                 className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
               >
                 <Plus className="h-4 w-4" />
@@ -134,7 +150,7 @@ export function ReservationsManager() {
           value={String(
             allReservations.filter(
               (r) =>
-                r.checkIn === "2026-08-20" &&
+                r.checkIn === todayISO() &&
                 (r.status === "Confirmed" || r.status === "Pending"),
             ).length,
           )}
@@ -303,10 +319,27 @@ export function ReservationsManager() {
 
         <ReservationDetailsPanel
           reservation={selected}
+          rooms={rooms}
           onUpdate={updateReservation}
           onNotify={showToast}
         />
       </div>
+
+      {createOpen ? (
+        <NewBookingModal
+          roomTypes={roomTypeNames.length ? roomTypeNames : fallbackRoomTypes}
+          onClose={() => setCreateOpen(false)}
+          onCreate={async (input) => {
+            try {
+              await createBooking(input);
+              setCreateOpen(false);
+              showToast("Booking created.");
+            } catch (err) {
+              showToast(err instanceof Error ? err.message : "Could not create booking.");
+            }
+          }}
+        />
+      ) : null}
 
       {toast}
     </div>
@@ -361,10 +394,12 @@ function OverviewCard({
 
 function ReservationDetailsPanel({
   reservation,
+  rooms,
   onUpdate,
   onNotify,
 }: {
   reservation: Reservation | null;
+  rooms: { name: string }[];
   onUpdate: (id: string, patch: Partial<Reservation>) => void;
   onNotify: (message: string) => void;
 }) {
@@ -455,6 +490,7 @@ function ReservationDetailsPanel({
 
       <ReservationActions
         reservation={reservation}
+        rooms={rooms}
         onUpdate={onUpdate}
         onNotify={onNotify}
       />
@@ -464,10 +500,12 @@ function ReservationDetailsPanel({
 
 function ReservationActions({
   reservation,
+  rooms,
   onUpdate,
   onNotify,
 }: {
   reservation: Reservation;
+  rooms: { name: string }[];
   onUpdate: (id: string, patch: Partial<Reservation>) => void;
   onNotify: (message: string) => void;
 }) {
@@ -535,11 +573,17 @@ function ReservationActions({
             <p className="mt-1 text-sm text-muted">{reservation.guest} · {reservation.id}</p>
             <label className="mt-4 block text-sm">
               <span className="mb-1.5 block font-medium">Room</span>
-              <input
+              <select
                 value={roomChoice}
                 onChange={(event) => setRoomChoice(event.target.value)}
-                className="field-input h-11"
-              />
+                className="field-input h-11 w-full"
+              >
+                {rooms.map((room) => (
+                  <option key={room.name} value={room.name}>
+                    {room.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -607,6 +651,179 @@ function ActionButton({
     >
       {label}
     </button>
+  );
+}
+
+function NewBookingModal({
+  roomTypes,
+  onClose,
+  onCreate,
+}: {
+  roomTypes: string[];
+  onClose: () => void;
+  onCreate: (input: {
+    guest: string;
+    email: string;
+    phone: string;
+    roomType: string;
+    checkIn: string;
+    checkOut: string;
+    adults?: number;
+    children?: number;
+    source?: string;
+  }) => Promise<void>;
+}) {
+  const today = todayISO();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    guest: "",
+    email: "",
+    phone: "",
+    roomType: roomTypes[0] ?? "",
+    checkIn: today,
+    checkOut: "",
+    adults: "2",
+    children: "0",
+    source: "Walk-in" as BookingSource,
+  });
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-4">
+      <button
+        type="button"
+        aria-label="Close dialog"
+        onClick={onClose}
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-[1px]"
+      />
+      <div className="relative z-10 w-full max-w-lg rounded-t-2xl border border-border-subtle bg-surface p-5 shadow-xl sm:rounded-2xl sm:p-6">
+        <h2 className="font-display text-xl text-foreground">New booking</h2>
+        <p className="mt-1 text-sm text-muted">Creates a walk-in or desk reservation on the live backend.</p>
+        <form
+          className="mt-4 space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!form.guest.trim() || !form.email.trim() || !form.phone.trim() || !form.roomType || !form.checkIn || !form.checkOut) {
+              setError("Guest, contact, room type, and dates are required.");
+              return;
+            }
+            setBusy(true);
+            setError("");
+            void onCreate({
+              guest: form.guest.trim(),
+              email: form.email.trim(),
+              phone: form.phone.trim(),
+              roomType: form.roomType,
+              checkIn: form.checkIn,
+              checkOut: form.checkOut,
+              adults: Number(form.adults) || 1,
+              children: Number(form.children) || 0,
+              source: form.source,
+            }).finally(() => setBusy(false));
+          }}
+        >
+          {error ? <p className="text-sm text-danger">{error}</p> : null}
+          <input
+            required
+            value={form.guest}
+            onChange={(event) => setForm((prev) => ({ ...prev, guest: event.target.value }))}
+            placeholder="Guest name"
+            className="field-input h-11 w-full"
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input
+              required
+              type="email"
+              value={form.email}
+              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+              placeholder="Email"
+              className="field-input h-11 w-full"
+            />
+            <input
+              required
+              value={form.phone}
+              onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+              placeholder="Phone"
+              className="field-input h-11 w-full"
+            />
+          </div>
+          <select
+            value={form.roomType}
+            onChange={(event) => setForm((prev) => ({ ...prev, roomType: event.target.value }))}
+            className="field-input h-11 w-full"
+          >
+            {roomTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input
+              required
+              type="date"
+              value={form.checkIn}
+              onChange={(event) => setForm((prev) => ({ ...prev, checkIn: event.target.value }))}
+              className="field-input h-11 w-full"
+            />
+            <input
+              required
+              type="date"
+              value={form.checkOut}
+              onChange={(event) => setForm((prev) => ({ ...prev, checkOut: event.target.value }))}
+              className="field-input h-11 w-full"
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <input
+              type="number"
+              min={1}
+              value={form.adults}
+              onChange={(event) => setForm((prev) => ({ ...prev, adults: event.target.value }))}
+              className="field-input h-11 w-full"
+              aria-label="Adults"
+            />
+            <input
+              type="number"
+              min={0}
+              value={form.children}
+              onChange={(event) => setForm((prev) => ({ ...prev, children: event.target.value }))}
+              className="field-input h-11 w-full"
+              aria-label="Children"
+            />
+            <select
+              value={form.source}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, source: event.target.value as BookingSource }))
+              }
+              className="field-input h-11 w-full"
+            >
+              {sources.filter((item) => item !== "All").map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
+            >
+              {busy ? "Saving…" : "Create booking"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

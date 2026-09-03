@@ -5,11 +5,7 @@ export type RoomStatus =
   | "Cleaning"
   | "Maintenance";
 
-export type RoomType =
-  | "Leaf Suite"
-  | "Garden Deluxe"
-  | "Canopy King"
-  | "Mist Twin";
+export type RoomType = string;
 
 export type Room = {
   id: string;
@@ -23,6 +19,7 @@ export type Room = {
   sizeSqFt: number;
   amenities: string[];
   status: RoomStatus;
+  imageUrl?: string;
   guest?: string;
   reservationId?: string;
   notes?: string;
@@ -37,10 +34,9 @@ export const roomStatusStyles: Record<RoomStatus, string> = {
 };
 
 export const roomTypes: RoomType[] = [
-  "Leaf Suite",
-  "Garden Deluxe",
-  "Canopy King",
-  "Mist Twin",
+  "Canopy Suite",
+  "Mist Cottage",
+  "Leaf Room",
 ];
 
 export const rooms: Room[] = [

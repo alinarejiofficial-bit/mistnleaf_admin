@@ -1,3 +1,4 @@
+import { todayISO } from "@/lib/ops-live";
 import { formatDisplayDate, formatINR } from "@/lib/data";
 
 export type ReservationStatus =
@@ -379,8 +380,7 @@ export const reservations: Reservation[] = [
   },
 ];
 
-export function getReservationCounts(list: Reservation[] = reservations) {
-  const today = "2026-08-20";
+export function getReservationCounts(list: Reservation[] = reservations, today = todayISO()) {
   return {
     total: list.length,
     today: list.filter((r) => r.checkIn === today).length,

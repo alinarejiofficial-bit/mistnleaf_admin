@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { checkInQueue, formatINR, today } from "@/lib/ops-data";
+import { useOps } from "@/components/ops/OpsProvider";
+import { formatINR } from "@/lib/ops-data";
 import { formatDisplayDate } from "@/lib/data";
 import {
   reservationStatusStyles,
@@ -13,13 +14,14 @@ import { PermissionGate } from "@/components/auth/PermissionGate";
 import { Badge, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
 
 export function CheckInManager() {
-  const [queue, setQueue] = useState(checkInQueue);
+  const { checkInQueue, today, saveBooking, recordPayment } = useOps();
   const [done, setDone] = useState<string[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const queue = checkInQueue.filter((item) => !done.includes(item.id));
 
-  function completeCheckIn(id: string) {
+  async function completeCheckIn(id: string) {
+    await saveBooking(id, { status: "Checked-in" });
     setDone((prev) => [...prev, id]);
-    setQueue((prev) => prev.filter((item) => item.id !== id));
     setExpandedId(null);
   }
 
@@ -37,7 +39,7 @@ export function CheckInManager() {
 
       <SectionCard
         title="Arrival queue"
-        description="Verify guest details, check payment, assign room, and confirm check-in"
+        description="Website and desk bookings due today — confirm check-in to update the room board"
       >
         <div className="divide-y divide-border-subtle">
           {queue.map((item) => (
@@ -48,7 +50,8 @@ export function CheckInManager() {
               onToggle={() =>
                 setExpandedId((prev) => (prev === item.id ? null : item.id))
               }
-              onCheckIn={() => completeCheckIn(item.id)}
+              onCheckIn={() => void completeCheckIn(item.id)}
+              onCollect={() => void recordPayment(item.id)}
             />
           ))}
           {queue.length === 0 ? (
@@ -67,11 +70,13 @@ function ArrivalRow({
   expanded,
   onToggle,
   onCheckIn,
+  onCollect,
 }: {
   reservation: Reservation;
   expanded: boolean;
   onToggle: () => void;
   onCheckIn: () => void;
+  onCollect: () => void;
 }) {
   const balance = Math.max(0, reservation.amount - reservation.paidAmount);
 
@@ -121,26 +126,13 @@ function ArrivalRow({
       {expanded ? (
         <div className="mt-4 grid gap-3 rounded-xl border border-border-subtle bg-surface-muted/40 p-4 sm:grid-cols-2">
           <ChecklistItem label="Guest verified" detail={`${reservation.email} · ${reservation.phone}`} />
-          <ChecklistItem label="ID documentation" detail="Passport / Aadhaar on file (demo)" />
-          <ChecklistItem
-            label="Payment status"
-            detail={`${reservation.paymentStatus} · ${formatINR(reservation.paidAmount)} paid`}
-          />
+          <ChecklistItem label="Payment status" detail={`${reservation.paymentStatus} · ${formatINR(reservation.paidAmount)} paid`} />
           <ChecklistItem label="Room assigned" detail={reservation.room} />
-          <PermissionGate action="bookings.assignRoom">
-            <button
-              type="button"
-              onClick={() => window.alert("Assign room (demo).")}
-              className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-surface"
-            >
-              Reassign room
-            </button>
-          </PermissionGate>
           {balance > 0 ? (
             <PermissionGate action="payments.record">
               <button
                 type="button"
-                onClick={() => window.alert("Record payment (demo).")}
+                onClick={onCollect}
                 className="rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover"
               >
                 Collect {formatINR(balance)}

@@ -11,7 +11,10 @@ export async function readCmsContentFromDisk(): Promise<CmsContent> {
     const raw = await fs.readFile(DATA_FILE, "utf-8");
     return normalizeCmsContent(JSON.parse(raw) as Partial<CmsContent>);
   } catch {
-    return defaultCmsContent;
+    const seeded = defaultCmsContent;
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.writeFile(DATA_FILE, JSON.stringify(seeded, null, 2), "utf-8");
+    return seeded;
   }
 }
 

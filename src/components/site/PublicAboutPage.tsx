@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { PublicSiteFooter } from "@/components/site/PublicSiteFooter";
 import { PublicSiteHeader } from "@/components/site/PublicSiteHeader";
+import { PublicSiteSection } from "@/components/site/PublicSiteSectionEdit";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { canEditCmsContent } from "@/lib/cms-api-auth";
 import { fetchPublishedCmsFromApi } from "@/lib/cms-api-client";
@@ -15,7 +16,7 @@ import { getPublicSiteBasePath } from "@/lib/public-site-nav";
 export function PublicAboutPage() {
   const { currentUser } = useAuth();
   const [content, setContent] = useState<PublishedCmsContent | null>(null);
-  const isEditor = currentUser && canEditCmsContent(currentUser.roleId);
+  const isEditor = currentUser && canEditCmsContent(currentUser.roleId, currentUser.permissions);
   const homeHref = getPublicSiteBasePath() || "/";
 
   useEffect(() => {
@@ -101,7 +102,9 @@ export function PublicAboutPage() {
         </div>
       </div>
 
-      <PublicSiteFooter footer={content.footer} contact={content.contact} />
+      <PublicSiteSection sectionId="footer">
+        <PublicSiteFooter footer={content.footer} contact={content.contact} />
+      </PublicSiteSection>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { createId, useCms } from "@/components/cms/CmsProvider";
 import {
   ConfirmDialog,
@@ -10,7 +10,10 @@ import {
   ImageUploadField,
   PreviewButton,
   PublishBadge,
+  PublishListButton,
+  PublishStatusField,
   RichTextEditor,
+  ToastPortal,
   useToast,
 } from "@/components/cms/CmsShared";
 import {
@@ -29,41 +32,344 @@ type PreviewHandler = (section: string, data?: unknown) => void;
 
 export function AboutSection({ onPreview }: { onPreview: PreviewHandler }) {
   const { content, saveAbout } = useCms();
-  const { showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [draft, setDraft] = useState<CmsAbout | null>(null);
   const about = draft ?? content.about;
+
+  function update(patch: Partial<CmsAbout>) {
+    setDraft({ ...about, ...patch });
+  }
+
+  function updatePillar(index: number, patch: Partial<CmsAbout["pillars"][number]>) {
+    const pillars = about.pillars.map((pillar, i) =>
+      i === index ? { ...pillar, ...patch } : pillar,
+    );
+    update({ pillars });
+  }
+
+  function updateMosaic(index: number, patch: Partial<CmsAbout["mosaic"][number]>) {
+    const mosaic = about.mosaic.map((item, i) => (i === index ? { ...item, ...patch } : item));
+    update({ mosaic });
+  }
 
   return (
     <SectionShell
       title="About page"
-      description="Standalone About page — not part of the homepage scroll. Visitors open it from the main navigation."
+      description="Edit every block on the public /about page — the same section structure as the live website. Homepage about band still uses the shared title, intro, image, and CTA."
       onPreview={() => onPreview("about", about)}
       editing={!!draft}
       onEdit={() => setDraft({ ...content.about })}
       onDiscard={() => setDraft(null)}
       onSave={() => {
-        saveAbout(about);
+        saveAbout({ ...about, updatedAt: new Date().toISOString().slice(0, 10) });
         setDraft(null);
-        showSuccess("About section saved and published.");
+        showSuccess("About page saved. Changes appear on the public website.");
       }}
     >
       {draft ? (
-        <div className="space-y-4">
-          <TextInput label="Eyebrow" value={about.eyebrow} onChange={(v) => setDraft({ ...about, eyebrow: v })} />
-          <TextInput label="Title" value={about.title} onChange={(v) => setDraft({ ...about, title: v })} />
-          <RichTextEditor label="Content" value={about.content} onChange={(content) => setDraft({ ...about, content })} />
-          <ImageUploadField label="Image" value={about.imageUrl} onChange={(imageUrl) => setDraft({ ...about, imageUrl })} />
-          <TextInput label="CTA label" value={about.ctaLabel} onChange={(v) => setDraft({ ...about, ctaLabel: v })} />
-          <PublishToggle status={about.status} onToggle={() => setDraft({ ...about, status: togglePublishStatus(about.status) })} />
+        <div className="space-y-8">
+          <AboutBlock title="Page hero" hint="Top of /about — eyebrow, title, lead, and hero image.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Page eyebrow"
+                value={about.pageEyebrow}
+                onChange={(pageEyebrow) => update({ pageEyebrow })}
+              />
+              <TextInput
+                label="Title"
+                value={about.title}
+                onChange={(title) => update({ title })}
+              />
+            </div>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium">Lead</span>
+              <textarea
+                value={about.lead}
+                onChange={(e) => update({ lead: e.target.value })}
+                rows={3}
+                className="field-input"
+              />
+            </label>
+            <ImageUploadField
+              label="Hero image"
+              value={about.imageUrl}
+              onChange={(imageUrl) => update({ imageUrl })}
+              hint="Also used on the homepage about band."
+            />
+          </AboutBlock>
+
+          <AboutBlock title="Story" hint="Beginnings section with story copy and side image.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Story eyebrow"
+                value={about.storyEyebrow}
+                onChange={(storyEyebrow) => update({ storyEyebrow })}
+              />
+              <TextInput
+                label="Story title"
+                value={about.storyTitle}
+                onChange={(storyTitle) => update({ storyTitle })}
+              />
+            </div>
+            <RichTextEditor
+              label="Story content"
+              value={about.storyHtml || about.content}
+              onChange={(storyHtml) => update({ storyHtml })}
+            />
+            <ImageUploadField
+              label="Story image"
+              value={about.storyImageUrl}
+              onChange={(storyImageUrl) => update({ storyImageUrl })}
+            />
+          </AboutBlock>
+
+          <AboutBlock title="Pillars" hint="Three hosting pillars shown in a row.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Section eyebrow"
+                value={about.pillarsEyebrow}
+                onChange={(pillarsEyebrow) => update({ pillarsEyebrow })}
+              />
+              <TextInput
+                label="Section title"
+                value={about.pillarsTitle}
+                onChange={(pillarsTitle) => update({ pillarsTitle })}
+              />
+            </div>
+            <div className="space-y-4">
+              {about.pillars.map((pillar, index) => (
+                <div
+                  key={pillar.id}
+                  className="space-y-3 rounded-xl border border-border-subtle bg-surface-muted/20 p-4"
+                >
+                  <p className="text-xs font-medium tracking-wide text-muted uppercase">
+                    Pillar {String(index + 1).padStart(2, "0")}
+                  </p>
+                  <TextInput
+                    label="Title"
+                    value={pillar.title}
+                    onChange={(title) => updatePillar(index, { title })}
+                  />
+                  <label className="block text-sm">
+                    <span className="mb-1.5 block font-medium">Copy</span>
+                    <textarea
+                      value={pillar.copy}
+                      onChange={(e) => updatePillar(index, { copy: e.target.value })}
+                      rows={2}
+                      className="field-input"
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </AboutBlock>
+
+          <AboutBlock title="Atmosphere" hint="Mosaic of three images with captions.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Section eyebrow"
+                value={about.atmosphereEyebrow}
+                onChange={(atmosphereEyebrow) => update({ atmosphereEyebrow })}
+              />
+              <TextInput
+                label="Section title"
+                value={about.atmosphereTitle}
+                onChange={(atmosphereTitle) => update({ atmosphereTitle })}
+              />
+            </div>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium">Lead</span>
+              <textarea
+                value={about.atmosphereLead}
+                onChange={(e) => update({ atmosphereLead: e.target.value })}
+                rows={2}
+                className="field-input"
+              />
+            </label>
+            <div className="space-y-4">
+              {about.mosaic.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="space-y-3 rounded-xl border border-border-subtle bg-surface-muted/20 p-4"
+                >
+                  <p className="text-xs font-medium tracking-wide text-muted uppercase">
+                    Mosaic {String(index + 1).padStart(2, "0")}
+                  </p>
+                  <TextInput
+                    label="Caption"
+                    value={item.caption}
+                    onChange={(caption) => updateMosaic(index, { caption })}
+                  />
+                  <ImageUploadField
+                    label="Image"
+                    value={item.imageUrl}
+                    onChange={(imageUrl) => updateMosaic(index, { imageUrl })}
+                  />
+                </div>
+              ))}
+            </div>
+          </AboutBlock>
+
+          <AboutBlock title="Find us" hint="Place panel near the bottom of the About page.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Section eyebrow"
+                value={about.placeEyebrow}
+                onChange={(placeEyebrow) => update({ placeEyebrow })}
+              />
+              <TextInput
+                label="Section title"
+                value={about.placeTitle}
+                onChange={(placeTitle) => update({ placeTitle })}
+              />
+            </div>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium">Address / lead</span>
+              <textarea
+                value={about.placeLead}
+                onChange={(e) => update({ placeLead: e.target.value })}
+                rows={3}
+                className="field-input"
+                placeholder="Leave blank to use Contact address from the Contact page."
+              />
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Hours / meta"
+                value={about.placeMeta}
+                onChange={(placeMeta) => update({ placeMeta })}
+              />
+              <TextInput
+                label="Primary CTA"
+                value={about.placeCtaLabel}
+                onChange={(placeCtaLabel) => update({ placeCtaLabel })}
+              />
+              <TextInput
+                label="Directions label"
+                value={about.placeDirectionsLabel}
+                onChange={(placeDirectionsLabel) => update({ placeDirectionsLabel })}
+              />
+              <TextInput
+                label="Homepage CTA label"
+                value={about.ctaLabel}
+                onChange={(ctaLabel) => update({ ctaLabel })}
+              />
+            </div>
+            <ImageUploadField
+              label="Place image"
+              value={about.placeImageUrl}
+              onChange={(placeImageUrl) => update({ placeImageUrl })}
+            />
+          </AboutBlock>
+
+          <AboutBlock title="Homepage about band" hint="Shared fields used on the homepage about section.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextInput
+                label="Homepage eyebrow"
+                value={about.eyebrow}
+                onChange={(eyebrow) => update({ eyebrow })}
+              />
+              <TextInput
+                label="Homepage CTA"
+                value={about.ctaLabel}
+                onChange={(ctaLabel) => update({ ctaLabel })}
+              />
+            </div>
+            <RichTextEditor
+              label="Homepage intro"
+              value={about.content}
+              onChange={(content) => update({ content })}
+            />
+          </AboutBlock>
+
+          <PublishStatusField
+            status={about.status}
+            onChange={(status) => update({ status })}
+          />
         </div>
       ) : (
-        <div className="space-y-2 text-sm">
-          <p className="text-xs tracking-wide text-muted uppercase">{about.eyebrow}</p>
-          <p className="font-display text-xl">{about.title}</p>
-          <PublishBadge status={about.status} />
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <PublishBadge status={about.status} />
+            <span className="text-xs text-muted">
+              {about.status === "Published" ? "Live on /about" : "Hidden from the public site"}
+            </span>
+          </div>
+
+          <div className="space-y-2 rounded-2xl border border-border-subtle bg-surface-muted/20 p-4">
+            <p className="text-xs tracking-wide text-muted uppercase">{about.pageEyebrow}</p>
+            <p className="font-display text-2xl text-foreground">{about.title}</p>
+            <p className="text-sm text-muted">{about.lead}</p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs tracking-wide text-muted uppercase">{about.storyEyebrow}</p>
+            <p className="text-sm font-medium text-foreground">{about.storyTitle}</p>
+            <div
+              className="prose prose-sm max-w-none text-muted"
+              dangerouslySetInnerHTML={{ __html: about.storyHtml || about.content }}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs tracking-wide text-muted uppercase">{about.pillarsEyebrow}</p>
+              <p className="mt-1 text-sm font-medium">{about.pillarsTitle}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(about.pillars ?? []).map((pillar, index) => (
+                <div key={pillar.id} className="rounded-xl border border-border-subtle p-3">
+                  <p className="text-[11px] text-muted">{String(index + 1).padStart(2, "0")}</p>
+                  <p className="mt-1 text-sm font-medium">{pillar.title}</p>
+                  <p className="mt-1 text-xs text-muted">{pillar.copy}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-2xl border border-border-subtle p-4">
+            <p className="text-xs tracking-wide text-muted uppercase">{about.atmosphereEyebrow}</p>
+            <p className="text-sm font-medium">{about.atmosphereTitle}</p>
+            <p className="text-xs text-muted">{about.atmosphereLead}</p>
+            <ul className="mt-2 space-y-1 text-xs text-muted">
+              {(about.mosaic ?? []).map((item) => (
+                <li key={item.id}>• {item.caption || "Untitled mosaic image"}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="space-y-1 rounded-2xl border border-border-subtle p-4">
+            <p className="text-xs tracking-wide text-muted uppercase">{about.placeEyebrow}</p>
+            <p className="text-sm font-medium">{about.placeTitle}</p>
+            <p className="whitespace-pre-line text-xs text-muted">
+              {about.placeLead || "Uses Contact address when blank."}
+            </p>
+            <p className="text-xs text-muted">{about.placeMeta}</p>
+          </div>
         </div>
       )}
+      <ToastPortal toast={toast} onClose={clearToast} />
     </SectionShell>
+  );
+}
+
+function AboutBlock({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-4 rounded-2xl border border-border-subtle bg-surface-muted/10 p-4">
+      <div>
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        <p className="mt-1 text-xs text-muted">{hint}</p>
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -97,6 +403,9 @@ export function AmenitiesSection({ onPreview }: { onPreview: PreviewHandler }) {
             setModal(item);
           }}
           onDelete={() => setDeleteId(item.id)}
+          onTogglePublish={() =>
+            saveAmenity({ ...item, status: togglePublishStatus(item.status) })
+          }
           onMoveUp={
             index > 0
               ? () => {
@@ -121,6 +430,10 @@ export function AmenitiesSection({ onPreview }: { onPreview: PreviewHandler }) {
           <TextInput label="Title" value={form.title} onChange={(title) => setForm((p) => ({ ...p, title }))} />
           <TextInput label="Description" value={form.description} onChange={(description) => setForm((p) => ({ ...p, description }))} />
           <ImageUploadField label="Image" value={form.imageUrl} onChange={(imageUrl) => setForm((p) => ({ ...p, imageUrl }))} />
+          <PublishStatusField
+            status={form.status}
+            onChange={(status) => setForm((p) => ({ ...p, status }))}
+          />
           <FormActions onCancel={() => setModal(null)} />
         </form>
       </CmsModal>
@@ -131,7 +444,7 @@ export function AmenitiesSection({ onPreview }: { onPreview: PreviewHandler }) {
 
 export function ExperiencesSection({ onPreview }: { onPreview: PreviewHandler }) {
   const { content, saveExperience, deleteExperience, reorderExperiences } = useCms();
-  const { showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [modal, setModal] = useState<CmsExperience | "new" | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<CmsExperience>(emptyExperience());
@@ -141,7 +454,7 @@ export function ExperiencesSection({ onPreview }: { onPreview: PreviewHandler })
   return (
     <ListSectionShell
       title="Experiences"
-      description="Optional rituals and activities for guests."
+      description="Optional rituals and activities for guests. Published items appear on the public site and homepage."
       onPreview={() => onPreview("experiences", items)}
       onAdd={() => {
         setForm(emptyExperience(items.length));
@@ -159,6 +472,9 @@ export function ExperiencesSection({ onPreview }: { onPreview: PreviewHandler })
             setModal(item);
           }}
           onDelete={() => setDeleteId(item.id)}
+          onTogglePublish={() =>
+            saveExperience({ ...item, status: togglePublishStatus(item.status) })
+          }
           onMoveUp={
             index > 0
               ? () => {
@@ -184,10 +500,15 @@ export function ExperiencesSection({ onPreview }: { onPreview: PreviewHandler })
           <TextInput label="Duration" value={form.duration} onChange={(duration) => setForm((p) => ({ ...p, duration }))} />
           <TextInput label="Description" value={form.description} onChange={(description) => setForm((p) => ({ ...p, description }))} />
           <ImageUploadField label="Image" value={form.imageUrl} onChange={(imageUrl) => setForm((p) => ({ ...p, imageUrl }))} />
+          <PublishStatusField
+            status={form.status}
+            onChange={(status) => setForm((p) => ({ ...p, status }))}
+          />
           <FormActions onCancel={() => setModal(null)} />
         </form>
       </CmsModal>
       <ConfirmDialog open={deleteId !== null} title="Delete experience?" message="Remove this experience from the website." onCancel={() => setDeleteId(null)} onConfirm={() => { if (deleteId) deleteExperience(deleteId); setDeleteId(null); showSuccess("Experience deleted."); }} />
+      <ToastPortal toast={toast} onClose={clearToast} />
     </ListSectionShell>
   );
 }
@@ -226,7 +547,10 @@ export function LocationSection({ onPreview }: { onPreview: PreviewHandler }) {
           </label>
           <TextInput label="Directions URL" value={location.directionsUrl} onChange={(v) => setDraft({ ...location, directionsUrl: v })} />
           <TextInput label="Map embed URL" value={location.mapEmbedUrl} onChange={(v) => setDraft({ ...location, mapEmbedUrl: v })} />
-          <PublishToggle status={location.status} onToggle={() => setDraft({ ...location, status: togglePublishStatus(location.status) })} />
+          <PublishStatusField
+            status={location.status}
+            onChange={(status) => setDraft({ ...location, status })}
+          />
         </div>
       ) : (
         <div className="space-y-2 text-sm">
@@ -265,7 +589,10 @@ export function SocialSection({ onPreview }: { onPreview: PreviewHandler }) {
           {(["instagram", "facebook", "twitter", "youtube", "linkedin"] as const).map((key) => (
             <TextInput key={key} label={key} value={social[key]} onChange={(v) => setDraft({ ...social, [key]: v })} />
           ))}
-          <PublishToggle status={social.status} onToggle={() => setDraft({ ...social, status: togglePublishStatus(social.status) })} />
+          <PublishStatusField
+            status={social.status}
+            onChange={(status) => setDraft({ ...social, status })}
+          />
         </div>
       ) : (
         <div className="space-y-1 text-sm text-muted">
@@ -372,9 +699,9 @@ export function FooterSection({ onPreview }: { onPreview: PreviewHandler }) {
             </div>
           </div>
 
-          <PublishToggle
+          <PublishStatusField
             status={footer.status}
-            onToggle={() => setDraft({ ...footer, status: togglePublishStatus(footer.status) })}
+            onChange={(status) => setDraft({ ...footer, status })}
           />
         </div>
       ) : (
@@ -494,16 +821,54 @@ function SectionShell({
           <h2 className="font-display text-2xl text-foreground">{title}</h2>
           <p className="mt-1 text-sm text-muted">{description}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <PreviewButton onClick={onPreview} />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl border border-border p-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (editing) onDiscard();
+                else onPreview();
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium ${
+                !editing
+                  ? "bg-brand text-white"
+                  : "text-foreground hover:bg-surface-muted"
+              }`}
+            >
+              <Eye className="h-4 w-4" />
+              Preview
+            </button>
+            <button
+              type="button"
+              onClick={onEdit}
+              className={`inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium ${
+                editing
+                  ? "bg-brand text-white"
+                  : "text-foreground hover:bg-surface-muted"
+              }`}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </button>
+          </div>
           {editing ? (
             <>
-              <button type="button" onClick={onDiscard} className="rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-surface-muted">Discard</button>
-              <button type="button" onClick={onSave} className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover">Save & publish</button>
+              <button
+                type="button"
+                onClick={onDiscard}
+                className="rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-surface-muted"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                onClick={onSave}
+                className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+              >
+                Save & publish
+              </button>
             </>
-          ) : (
-            <button type="button" onClick={onEdit} className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover">Edit</button>
-          )}
+          ) : null}
         </div>
       </div>
       <div className="rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm">{children}</div>
@@ -550,6 +915,7 @@ function ItemCard({
   status,
   onEdit,
   onDelete,
+  onTogglePublish,
   onMoveUp,
 }: {
   title: string;
@@ -557,6 +923,7 @@ function ItemCard({
   status: PublishStatus;
   onEdit: () => void;
   onDelete: () => void;
+  onTogglePublish: () => void;
   onMoveUp?: () => void;
 }) {
   return (
@@ -570,6 +937,7 @@ function ItemCard({
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         <button type="button" onClick={onEdit} className="rounded-lg border border-border px-2 py-1 text-xs font-medium hover:bg-surface-muted">Edit</button>
+        <PublishListButton status={status} onToggle={onTogglePublish} />
         {onMoveUp ? (
           <button type="button" onClick={onMoveUp} className="rounded-lg border border-border px-2 py-1 text-xs font-medium hover:bg-surface-muted">Move up</button>
         ) : null}
@@ -590,18 +958,18 @@ function TextInput({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
-function PublishToggle({ status, onToggle }: { status: PublishStatus; onToggle: () => void }) {
-  return (
-    <button type="button" onClick={onToggle} className="rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-surface-muted sm:col-span-2 sm:w-fit">
-      {status === "Published" ? "Unpublish" : "Publish"}
-    </button>
-  );
-}
-
 function emptyAmenity(sortOrder = 0): CmsAmenity {
   return { id: "", title: "", description: "", imageUrl: "", sortOrder, status: "Draft" };
 }
 
 function emptyExperience(sortOrder = 0): CmsExperience {
-  return { id: "", title: "", description: "", duration: "", imageUrl: "", sortOrder, status: "Draft" };
+  return {
+    id: "",
+    title: "",
+    description: "",
+    duration: "",
+    imageUrl: "",
+    sortOrder,
+    status: "Published",
+  };
 }

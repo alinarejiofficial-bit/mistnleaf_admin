@@ -11,7 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import { dashboardSummary, formatINR } from "@/lib/data";
+import { useOps } from "@/components/ops/OpsProvider";
+import { formatINR } from "@/lib/data";
 import type { AppAction } from "@/lib/permissions";
 
 type SummaryCard = {
@@ -24,82 +25,82 @@ type SummaryCard = {
   action: AppAction;
 };
 
-const cards: SummaryCard[] = [
-  {
-    key: "total-rooms",
-    label: "Total Rooms",
-    value: String(dashboardSummary.totalRooms),
-    icon: BedDouble,
-    accent: "bg-brand-soft text-brand",
-    href: "/rooms",
-    action: "rooms.view",
-  },
-  {
-    key: "available",
-    label: "Available",
-    value: String(dashboardSummary.availableRooms),
-    icon: BedDouble,
-    accent: "bg-[#e8f3ec] text-success",
-    href: "/rooms",
-    action: "rooms.view",
-  },
-  {
-    key: "occupied",
-    label: "Occupied",
-    value: String(dashboardSummary.occupiedRooms),
-    icon: Users,
-    accent: "bg-accent-soft text-[#8a6a2f]",
-    href: "/rooms",
-    action: "rooms.view",
-  },
-  {
-    key: "reserved",
-    label: "Reserved",
-    value: String(dashboardSummary.reservedRooms),
-    icon: ClipboardList,
-    accent: "bg-[#e7f0f5] text-info",
-    href: "/calendar",
-    action: "calendar.view",
-  },
-  {
-    key: "check-ins",
-    label: "Check-ins",
-    value: String(dashboardSummary.todaysCheckIns),
-    icon: CalendarCheck,
-    accent: "bg-brand-soft text-brand",
-    href: "/check-in",
-    action: "checkin.manage",
-  },
-  {
-    key: "check-outs",
-    label: "Check-outs",
-    value: String(dashboardSummary.todaysCheckOuts),
-    icon: CalendarMinus,
-    accent: "bg-[#e7f0f5] text-info",
-    href: "/check-out",
-    action: "checkout.manage",
-  },
-  {
-    key: "today-revenue",
-    label: "Today's Revenue",
-    value: formatINR(dashboardSummary.todaysRevenue),
-    icon: IndianRupee,
-    accent: "bg-[#e8f3ec] text-success",
-    href: "/payments",
-    action: "payments.view",
-  },
-  {
-    key: "monthly-revenue",
-    label: "Monthly Revenue",
-    value: formatINR(dashboardSummary.monthlyRevenue),
-    icon: IndianRupee,
-    accent: "bg-[#e8f3ec] text-success",
-    href: "/reports",
-    action: "reports.view",
-  },
-];
-
 export function StatCards() {
+  const { summary } = useOps();
+  const cards: SummaryCard[] = [
+    {
+      key: "total-rooms",
+      label: "Total Rooms",
+      value: String(summary.totalRooms),
+      icon: BedDouble,
+      accent: "bg-brand-soft text-brand",
+      href: "/rooms",
+      action: "rooms.view",
+    },
+    {
+      key: "available",
+      label: "Available",
+      value: String(summary.availableRooms),
+      icon: BedDouble,
+      accent: "bg-[#e8f3ec] text-success",
+      href: "/rooms",
+      action: "rooms.view",
+    },
+    {
+      key: "occupied",
+      label: "Occupied",
+      value: String(summary.occupiedRooms),
+      icon: Users,
+      accent: "bg-accent-soft text-[#8a6a2f]",
+      href: "/rooms",
+      action: "rooms.view",
+    },
+    {
+      key: "reserved",
+      label: "Reserved",
+      value: String(summary.reservedRooms),
+      icon: ClipboardList,
+      accent: "bg-[#e7f0f5] text-info",
+      href: "/calendar",
+      action: "calendar.view",
+    },
+    {
+      key: "check-ins",
+      label: "Check-ins",
+      value: String(summary.todaysCheckIns),
+      icon: CalendarCheck,
+      accent: "bg-brand-soft text-brand",
+      href: "/check-in",
+      action: "checkin.manage",
+    },
+    {
+      key: "check-outs",
+      label: "Check-outs",
+      value: String(summary.todaysCheckOuts),
+      icon: CalendarMinus,
+      accent: "bg-[#e7f0f5] text-info",
+      href: "/check-out",
+      action: "checkout.manage",
+    },
+    {
+      key: "today-revenue",
+      label: "Today's Revenue",
+      value: formatINR(summary.todaysRevenue),
+      icon: IndianRupee,
+      accent: "bg-[#e8f3ec] text-success",
+      href: "/payments",
+      action: "payments.view",
+    },
+    {
+      key: "monthly-revenue",
+      label: "Monthly Revenue",
+      value: formatINR(summary.monthlyRevenue),
+      icon: IndianRupee,
+      accent: "bg-[#e8f3ec] text-success",
+      href: "/reports",
+      action: "reports.view",
+    },
+  ];
   return (
     <section>
       <div className="mb-3">

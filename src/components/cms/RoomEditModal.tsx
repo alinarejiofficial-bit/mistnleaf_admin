@@ -6,10 +6,11 @@ import {
   CmsModal,
   FormActions,
   ImageUploadField,
+  PublishStatusField,
   RichTextEditor,
   useToast,
 } from "@/components/cms/CmsShared";
-import type { CmsRoomContent, PublishStatus } from "@/lib/cms-data";
+import type { CmsRoomContent } from "@/lib/cms-data";
 
 export function emptyRoom(): CmsRoomContent {
   return {
@@ -136,22 +137,10 @@ export function RoomEditModal({ open, room, isNew = false, onClose }: RoomEditMo
             + Add another image
           </button>
         )}
-        <label className="block text-sm">
-          <span className="mb-1.5 block font-medium">Status</span>
-          <select
-            value={form.status}
-            onChange={(e) =>
-              setForm((prev) => ({
-                ...prev,
-                status: e.target.value as PublishStatus,
-              }))
-            }
-            className="field-input h-11"
-          >
-            <option value="Published">Published</option>
-            <option value="Draft">Draft</option>
-          </select>
-        </label>
+        <PublishStatusField
+          status={form.status}
+          onChange={(status) => setForm((prev) => ({ ...prev, status }))}
+        />
         <FormActions onCancel={onClose} />
       </form>
     </CmsModal>

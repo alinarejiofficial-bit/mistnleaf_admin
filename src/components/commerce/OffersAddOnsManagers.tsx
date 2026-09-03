@@ -1,9 +1,12 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { addOns as initialAddOns, formatINR, offers as initialOffers, type AddOn, type Offer } from "@/lib/ops-data";
+import { offersFromCms, addOnsFromCms } from "@/lib/ops-live";
+import { fetchCmsContentFromApi, saveCmsContentToApi } from "@/lib/cms-api-client";
+import type { CmsContent, CmsExperience, CmsWebsiteOffer } from "@/lib/cms-data";
 import { formatDisplayDate } from "@/lib/data";
 import { hasPermission } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -16,6 +19,80 @@ const offerStyles = {
 };
 
 const offerStatuses: Offer["status"][] = ["Active", "Scheduled", "Expired"];
+
+function toCmsOffer(offer: Offer, existing?: CmsWebsiteOffer, sortOrder = 0): CmsWebsiteOffer {
+  return {
+    id: offer.id,
+    title: offer.title,
+    code: offer.code,
+    description: existing?.description || offer.title,
+    details: existing?.details || "",
+    discount: offer.discount,
+    priceFrom: existing?.priceFrom ?? 0,
+    priceLabel: existing?.priceLabel || "FROM",
+    terms: existing?.terms ?? [],
+    bookCtaLabel: existing?.bookCtaLabel || "Book package →",
+    bookCtaHref: existing?.bookCtaHref || "#contact",
+    sortOrder: existing?.sortOrder ?? sortOrder,
+    validFrom: offer.validFrom,
+    validTo: offer.validTo,
+    active: offer.status === "Active",
+    status: offer.status === "Expired" ? "Draft" : "Published",
+    updatedAt: new Date().toISOString().slice(0, 10),
+  };
+}
+
+function toCmsExperience(item: AddOn, existing?: CmsExperience, sortOrder = 0): CmsExperience {
+  return {
+    id: item.id,
+    title: item.name,
+    description: existing?.description || (item.price ? `From ₹${item.price}` : ""),
+    duration: existing?.duration || "",
+    imageUrl: existing?.imageUrl || "",
+    sortOrder: existing?.sortOrder ?? sortOrder,
+    status: item.status === "Active" ? "Published" : "Draft",
+  };
+}
+
+async function persistOffersToCms(
+  next: Offer[],
+  user: { id: string; roleId: import("@/lib/roles").RoleId },
+) {
+  const content: CmsContent = await fetchCmsContentFromApi(user.roleId, user.id);
+  const nextById = new Map(next.map((item) => [item.id, item]));
+  const kept = content.offers.map((existing) => {
+    const offer = nextById.get(existing.id);
+    return offer ? toCmsOffer(offer, existing, existing.sortOrder) : existing;
+  });
+  const extras = next
+    .filter((item) => !content.offers.some((offer) => offer.id === item.id))
+    .map((item, index) => toCmsOffer(item, undefined, content.offers.length + index));
+  await saveCmsContentToApi(
+    { ...content, offers: [...kept, ...extras] },
+    user.roleId,
+    user.id,
+  );
+}
+
+async function persistAddOnsToCms(
+  next: AddOn[],
+  user: { id: string; roleId: import("@/lib/roles").RoleId },
+) {
+  const content: CmsContent = await fetchCmsContentFromApi(user.roleId, user.id);
+  const nextById = new Map(next.map((item) => [item.id, item]));
+  const kept = content.experiences.map((existing) => {
+    const addon = nextById.get(existing.id);
+    return addon ? toCmsExperience(addon, existing, existing.sortOrder) : existing;
+  });
+  const extras = next
+    .filter((item) => !content.experiences.some((exp) => exp.id === item.id))
+    .map((item, index) => toCmsExperience(item, undefined, content.experiences.length + index));
+  await saveCmsContentToApi(
+    { ...content, experiences: [...kept, ...extras] },
+    user.roleId,
+    user.id,
+  );
+}
 
 const emptyOfferForm = {
   title: "",
@@ -39,6 +116,16 @@ export function OffersManager() {
     : false;
 
   const [items, setItems] = useState<Offer[]>(initialOffers);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    void fetchCmsContentFromApi(currentUser.roleId, currentUser.id)
+      .then((content) => {
+        const mapped = offersFromCms(content.offers);
+        if (mapped.length) setItems(mapped);
+      })
+      .catch(() => undefined);
+  }, [currentUser]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -82,7 +169,7 @@ export function OffersManager() {
     setError("");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const title = form.title.trim();
@@ -115,12 +202,9 @@ export function OffersManager() {
       return;
     }
 
-    if (creating) {
-      const nextId = `OFF-${String(items.length + 1).padStart(2, "0")}`;
-      setItems((prev) => [
-        ...prev,
-        {
-          id: nextId,
+    const nextItem: Offer = creating
+      ? {
+          id: `cms-offer-${Date.now()}`,
           title,
           code,
           discount,
@@ -128,25 +212,30 @@ export function OffersManager() {
           validTo: form.validTo,
           status: form.status,
           usage,
-        },
-      ]);
-    } else if (editingId) {
-      setItems((prev) =>
-        prev.map((offer) =>
-          offer.id === editingId
-            ? {
-                ...offer,
-                title,
-                code,
-                discount,
-                validFrom: form.validFrom,
-                validTo: form.validTo,
-                status: form.status,
-                usage,
-              }
-            : offer,
-        ),
-      );
+        }
+      : {
+          id: editingId ?? "",
+          title,
+          code,
+          discount,
+          validFrom: form.validFrom,
+          validTo: form.validTo,
+          status: form.status,
+          usage,
+        };
+
+    const next = creating
+      ? [...items, nextItem]
+      : items.map((offer) => (offer.id === editingId ? { ...offer, ...nextItem } : offer));
+
+    setItems(next);
+    if (currentUser) {
+      try {
+        await persistOffersToCms(next, currentUser);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not save offer to the website.");
+        return;
+      }
     }
 
     closeModal();
@@ -417,6 +506,16 @@ export function AddOnsManager() {
     : false;
 
   const [items, setItems] = useState<AddOn[]>(initialAddOns);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    void fetchCmsContentFromApi(currentUser.roleId, currentUser.id)
+      .then((content) => {
+        const mapped = addOnsFromCms(content.experiences);
+        if (mapped.length) setItems(mapped);
+      })
+      .catch(() => undefined);
+  }, [currentUser]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -458,7 +557,7 @@ export function AddOnsManager() {
     setError("");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const name = form.name.trim();
@@ -480,34 +579,36 @@ export function AddOnsManager() {
       return;
     }
 
-    if (creating) {
-      const nextId = `ADD-${String(items.length + 1).padStart(2, "0")}`;
-      setItems((prev) => [
-        ...prev,
-        {
-          id: nextId,
+    const nextItem: AddOn = creating
+      ? {
+          id: `cms-exp-${Date.now()}`,
           name,
           category: form.category,
           price,
           status: form.status,
           bookings,
-        },
-      ]);
-    } else if (editingId) {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingId
-            ? {
-                ...item,
-                name,
-                category: form.category,
-                price,
-                status: form.status,
-                bookings,
-              }
-            : item,
-        ),
-      );
+        }
+      : {
+          id: editingId ?? "",
+          name,
+          category: form.category,
+          price,
+          status: form.status,
+          bookings,
+        };
+
+    const next = creating
+      ? [...items, nextItem]
+      : items.map((item) => (item.id === editingId ? { ...item, ...nextItem } : item));
+
+    setItems(next);
+    if (currentUser) {
+      try {
+        await persistAddOnsToCms(next, currentUser);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not save add-on to the website.");
+        return;
+      }
     }
 
     closeModal();

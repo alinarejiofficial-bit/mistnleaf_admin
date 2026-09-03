@@ -22,7 +22,7 @@ export function MistnLeafLogo({
 
   return (
     <span
-      className={`inline-flex items-center justify-center overflow-hidden rounded-lg bg-black ${className}`}
+      className={`inline-flex items-center justify-center overflow-hidden rounded-lg ${className}`}
     >
       <Image
         src="/brand/mistnleaf-logo.png"

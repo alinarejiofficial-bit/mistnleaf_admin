@@ -136,29 +136,37 @@ const routePriority = [
   "/help",
 ];
 
-export function canAccessRoute(roleId: RoleId, href: string): boolean {
+export function canAccessRoute(
+  roleId: RoleId,
+  href: string,
+  livePermissions?: import("./roles").Permission[],
+): boolean {
   if (href === "/help" || href === "/login" || href === "/profile") return true;
 
   if (href.startsWith("/website/")) {
     const cmsPerms = routePermissions["/website"];
     if (cmsPerms) {
-      return cmsPerms.some((permission) => hasPermission(roleId, permission));
+      return cmsPerms.some((permission) => hasPermission(roleId, permission, livePermissions));
     }
   }
 
   const permissions = routePermissions[href];
   if (!permissions) return true;
 
-  return permissions.some((permission) => hasPermission(roleId, permission));
+  return permissions.some((permission) => hasPermission(roleId, permission, livePermissions));
 }
 
-export function getDefaultRoute(roleId: RoleId): string {
-  return routePriority.find((href) => canAccessRoute(roleId, href)) ?? "/help";
+export function getDefaultRoute(
+  roleId: RoleId,
+  livePermissions?: import("./roles").Permission[],
+): string {
+  return routePriority.find((href) => canAccessRoute(roleId, href, livePermissions)) ?? "/help";
 }
 
 export function filterByRouteAccess<T extends { href: string }>(
   roleId: RoleId,
   items: T[],
+  livePermissions?: import("./roles").Permission[],
 ): T[] {
-  return items.filter((item) => canAccessRoute(roleId, item.href));
+  return items.filter((item) => canAccessRoute(roleId, item.href, livePermissions));
 }

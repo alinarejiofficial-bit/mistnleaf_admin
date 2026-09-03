@@ -48,7 +48,8 @@ import {
   type CmsRouteSection,
   type CmsSectionId,
 } from "@/lib/cms-data";
-import { getPublicAboutPath, getPublicSiteBasePath } from "@/lib/public-site-nav";
+import { getCmsBackendUrl } from "@/lib/cms-api-client";
+import { getPublicSectionUrl, getPublicWebsiteUrl } from "@/lib/public-site-nav";
 import { hasAnyPermission } from "@/lib/roles";
 
 const sectionIcons: Record<CmsSectionId, React.ReactNode> = {
@@ -116,7 +117,7 @@ function WebsiteCmsShell({
 }: Required<WebsiteCmsManagerProps>) {
   const pathname = usePathname();
   const { currentUser } = useAuth();
-  const { ready, content } = useCms();
+  const { ready, content, contentSource, isSaving, saveError, lastSavedAt, clearSaveError } = useCms();
   const [internalSection, setInternalSection] = useState<ActiveCmsSection>(
     toActiveSection(initialSection),
   );
@@ -138,7 +139,7 @@ function WebsiteCmsShell({
   }, [pathname]);
 
   const canManage = currentUser
-    ? hasAnyPermission(currentUser.roleId, [...cmsPermissions])
+    ? hasAnyPermission(currentUser.roleId, [...cmsPermissions], currentUser.permissions)
     : false;
 
   const stats = useMemo(
@@ -166,9 +167,12 @@ function WebsiteCmsShell({
   const faqsFocus =
     activeSection === "contact" ? "contact" : activeSection === "faqs" ? "faqs" : "all";
 
-  const publicSiteHref = getPublicSiteBasePath() || "/";
   const publicViewHref =
-    activeSection === "about" ? getPublicAboutPath() : publicSiteHref;
+    headerSection === "homepage"
+      ? getPublicWebsiteUrl("/")
+      : getPublicSectionUrl(headerSection);
+  const isExternalPublicView = publicViewHref.startsWith("http");
+  const backendUrl = getCmsBackendUrl();
 
   function handlePreview(section: string, data?: unknown) {
     setPreview({ section, data });
@@ -190,6 +194,55 @@ function WebsiteCmsShell({
 
   return (
     <div className="space-y-5">
+      {(contentSource !== "api" || saveError || isSaving || lastSavedAt) && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            saveError
+              ? "border-danger/30 bg-[#f8e9e6] text-danger"
+              : contentSource !== "api"
+                ? "border-accent/30 bg-accent-soft text-[#8a6a2f]"
+                : isSaving
+                  ? "border-brand/20 bg-brand-soft/40 text-brand-mid"
+                  : "border-success/30 bg-[#e8f3ec] text-success"
+          }`}
+        >
+          {saveError ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>Could not save to the public website backend: {saveError}</span>
+              <button
+                type="button"
+                onClick={clearSaveError}
+                className="text-xs font-medium underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          ) : contentSource !== "api" ? (
+            <span>
+              Showing cached content — could not reach the website backend at{" "}
+              <strong>{backendUrl}</strong>. Start Django with{" "}
+              <code className="rounded bg-surface px-1">python manage.py runserver 3001</code>{" "}
+              and refresh. Edits will not appear on the public site until the API is connected.
+            </span>
+          ) : isSaving ? (
+            <span>Saving changes to the public website…</span>
+          ) : (
+            <span>
+              Saved to public website at {lastSavedAt}. Only items marked{" "}
+              <strong>Published</strong> appear on{" "}
+              <a
+                href={getPublicWebsiteUrl("/")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium underline"
+              >
+                http://localhost:3001
+              </a>
+              . Draft items stay hidden. Hard-refresh the public site (Ctrl+F5) after saving.
+            </span>
+          )}
+        </div>
+      )}
       {!compactHeader ? (
         <header className="rounded-2xl border border-brand/20 bg-gradient-to-br from-brand-soft via-surface to-accent-soft p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -201,8 +254,18 @@ function WebsiteCmsShell({
                 Website CMS
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted">
-                Manage homepage, rooms, gallery, offers, testimonials, FAQs, and contact
-                information — no code editing required.
+                Edits save to the Django website at{" "}
+                <a
+                  href={getPublicWebsiteUrl("/")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-brand-mid underline"
+                >
+                  http://localhost:3001
+                </a>
+                . Items must be <strong>Published</strong> to appear. Keep Django running with{" "}
+                <code className="rounded bg-surface px-1">python manage.py runserver 3001</code>
+                , then hard-refresh the public site (Ctrl+F5).
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -211,13 +274,26 @@ function WebsiteCmsShell({
               <StatChip label="Media" value={stats.media} />
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href={publicViewHref}
+              target={isExternalPublicView ? "_blank" : undefined}
+              rel={isExternalPublicView ? "noopener noreferrer" : undefined}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-brand/25 bg-brand-soft/50 px-3 py-2 text-sm font-medium text-brand-mid hover:bg-brand-soft"
+            >
+              <ExternalLink className="h-4 w-4" />
+              View live public website
+            </Link>
+          </div>
         </header>
       ) : (
         <header className="rounded-2xl border border-border-subtle bg-surface px-5 py-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <Link
-                href={publicSiteHref}
+                href={getPublicWebsiteUrl("/")}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-foreground"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
@@ -232,7 +308,8 @@ function WebsiteCmsShell({
             </div>
             <Link
               href={publicViewHref}
-              target={publicViewHref.startsWith("/site") ? "_blank" : undefined}
+              target={isExternalPublicView ? "_blank" : undefined}
+              rel={isExternalPublicView ? "noopener noreferrer" : undefined}
               className="inline-flex items-center gap-1.5 rounded-xl border border-brand/25 bg-brand-soft/50 px-3 py-2 text-sm font-medium text-brand-mid hover:bg-brand-soft"
             >
               <ExternalLink className="h-4 w-4" />

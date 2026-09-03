@@ -2,12 +2,16 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, KeyRound, Plus, ShieldCheck, UserPlus, X } from "lucide-react";
+import { Eye, Plus, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
+  canDeleteStaffUser,
+  canMutateStaffUser,
   getAssignableRolesFor,
   getRole,
   hasPermission,
+  isLastActiveSuperAdministrator,
   roleBadgeClass,
   type RoleId,
 } from "@/lib/roles";
@@ -38,27 +42,32 @@ export function UsersManager() {
     updateUserRole,
     toggleUserStatus,
     setUserPassword,
+    deleteUser,
   } = useAuth();
 
+  const livePermissions = currentUser?.permissions;
   const canManageUsers = currentUser
-    ? hasPermission(currentUser.roleId, "manage_users")
+    ? hasPermission(currentUser.roleId, "manage_users", livePermissions)
     : false;
   const canManageStaff = currentUser
-    ? hasPermission(currentUser.roleId, "manage_staff")
+    ? hasPermission(currentUser.roleId, "manage_staff", livePermissions)
     : false;
   const canManageRoles = currentUser
-    ? hasPermission(currentUser.roleId, "manage_roles")
+    ? hasPermission(currentUser.roleId, "manage_roles", livePermissions)
     : false;
   const canManageAccounts = canManageUsers || canManageStaff;
   const assignableRoleOptions = currentUser
-    ? getAssignableRolesFor(currentUser.roleId)
+    ? getAssignableRolesFor(currentUser.roleId, livePermissions)
     : [];
 
   const [viewUserId, setViewUserId] = useState<string | null>(null);
   const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [passwordModalUserId, setPasswordModalUserId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [passwordForm, setPasswordForm] = useState({
@@ -70,6 +79,7 @@ export function UsersManager() {
   const passwordModalUser = users.find((user) => user.id === passwordModalUserId);
   const viewUser = users.find((user) => user.id === viewUserId);
   const editUser = users.find((user) => user.id === editUserId);
+  const deleteTarget = users.find((user) => user.id === deleteUserId);
   const [editForm, setEditForm] = useState<{
     name: string;
     email: string;
@@ -117,7 +127,7 @@ export function UsersManager() {
     return "";
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canManageAccounts) {
       setError("You do not have permission to add users.");
@@ -143,13 +153,15 @@ export function UsersManager() {
       return;
     }
 
-    const result = addUser({
+    setSaving(true);
+    const result = await addUser({
       name,
       email,
       phone: form.phone.trim() || undefined,
       roleId: form.roleId,
       password: form.password,
     });
+    setSaving(false);
 
     if (!result.ok) {
       setError(result.error);
@@ -159,7 +171,7 @@ export function UsersManager() {
     closeModal();
   }
 
-  function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!passwordModalUserId || !canManageAccounts) return;
 
@@ -172,7 +184,13 @@ export function UsersManager() {
       return;
     }
 
-    setUserPassword(passwordModalUserId, passwordForm.password);
+    setSaving(true);
+    const result = await setUserPassword(passwordModalUserId, passwordForm.password);
+    setSaving(false);
+    if (!result.ok) {
+      setPasswordError(result.error);
+      return;
+    }
     closePasswordModal();
   }
 
@@ -182,7 +200,7 @@ export function UsersManager() {
         title="Users & roles"
         description={
           canManageUsers
-            ? "Super Administrators can create staff accounts with login passwords for every role."
+            ? "Super Administrators can create, edit, deactivate, and delete staff accounts for every role."
             : "Resort Managers can create and manage operational staff accounts."
         }
         action={
@@ -222,7 +240,8 @@ export function UsersManager() {
             </p>
             <p className="mt-1 text-sm text-muted">
               Set a password when adding users so they can sign in at the login
-              page.
+              page. Lower-level roles cannot modify Super Administrator accounts
+              or system-level permissions.
             </p>
           </div>
         </div>
@@ -248,6 +267,12 @@ export function UsersManager() {
           ) : null}
         </div>
 
+        {actionError ? (
+          <p className="border-b border-border-subtle px-5 py-3 text-sm text-danger sm:px-6" role="alert">
+            {actionError}
+          </p>
+        ) : null}
+
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-surface-muted/60 text-xs tracking-wide text-muted uppercase">
@@ -267,10 +292,15 @@ export function UsersManager() {
               {users.map((user) => {
                 const role = getRole(user.roleId);
                 const isSelf = user.id === currentUser?.id;
-                const isProtectedAdmin =
-                  user.roleId === "super_administrator" && !canManageUsers;
-                const canEditUser =
-                  canManageAccounts && !isSelf && !isProtectedAdmin;
+                const canEditUser = currentUser
+                  ? canMutateStaffUser(currentUser, user)
+                  : false;
+                const isLastSuperAdmin = isLastActiveSuperAdministrator(users, user.id);
+                const canChangeRole = canEditUser && !isLastSuperAdmin;
+                const canRemoveUser =
+                  Boolean(currentUser && canDeleteStaffUser(currentUser, user)) &&
+                  !isLastSuperAdmin;
+                const canDisableUser = canEditUser && !isLastSuperAdmin;
 
                 return (
                   <tr
@@ -299,12 +329,16 @@ export function UsersManager() {
                       </div>
                     </td>
                     <td className="px-5 py-4 sm:px-6">
-                      {canEditUser ? (
+                      {canChangeRole ? (
                         <select
                           value={user.roleId}
-                          onChange={(event) =>
-                            updateUserRole(user.id, event.target.value as RoleId)
-                          }
+                          onChange={(event) => {
+                            void updateUserRole(user.id, event.target.value as RoleId).then(
+                              (result) => {
+                                setActionError(result.ok ? "" : result.error);
+                              },
+                            );
+                          }}
                           className="h-9 max-w-[220px] rounded-lg border border-border bg-surface px-2 text-xs font-medium text-foreground outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
                         >
                           {assignableRoleOptions.map((assignable) => (
@@ -363,15 +397,34 @@ export function UsersManager() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => toggleUserStatus(user.id)}
-                              className="text-sm font-medium text-muted hover:text-foreground"
+                              onClick={() => {
+                                void toggleUserStatus(user.id).then((result) => {
+                                  setActionError(result.ok ? "" : result.error);
+                                });
+                              }}
+                              disabled={!canDisableUser}
+                              className="text-sm font-medium text-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {user.status === "Disabled" ? "Enable" : "Disable"}
                             </button>
+                            {canRemoveUser ? (
+                              <button
+                                type="button"
+                                onClick={() => setDeleteUserId(user.id)}
+                                className="inline-flex items-center gap-1 text-sm font-medium text-danger hover:text-[#c45a4a]"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete
+                              </button>
+                            ) : null}
                           </div>
                         ) : (
                           <span className="text-xs text-muted">
-                            {isSelf ? "Protected" : "View only"}
+                            {isSelf
+                              ? "Protected"
+                              : isLastSuperAdmin
+                                ? "Last Super Administrator"
+                                : "View only"}
                           </span>
                         )}
                       </td>
@@ -550,10 +603,11 @@ export function UsersManager() {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover disabled:opacity-60"
                 >
                   <UserPlus className="h-4 w-4" />
-                  Add user
+                  {saving ? "Saving…" : "Add user"}
                 </button>
               </div>
             </form>
@@ -644,9 +698,10 @@ export function UsersManager() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
+                  disabled={saving}
+                  className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover disabled:opacity-60"
                 >
-                  Save password
+                  {saving ? "Saving…" : "Save password"}
                 </button>
               </div>
             </form>
@@ -684,14 +739,22 @@ export function UsersManager() {
             className="w-full max-w-md rounded-2xl border border-border-subtle bg-surface p-5 shadow-md"
             onSubmit={(event) => {
               event.preventDefault();
-              updateUser(editUser.id, {
+              setSaving(true);
+              void updateUser(editUser.id, {
                 name: editForm.name.trim(),
                 email: editForm.email.trim(),
                 phone: editForm.phone.trim() || undefined,
                 roleId: editForm.roleId,
                 status: editForm.status,
+              }).then((result) => {
+                setSaving(false);
+                if (!result.ok) {
+                  setActionError(result.error);
+                  return;
+                }
+                setActionError("");
+                setEditUserId(null);
               });
-              setEditUserId(null);
             }}
           >
             <h2 className="font-display text-2xl text-foreground">Edit user</h2>
@@ -699,24 +762,66 @@ export function UsersManager() {
               <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="field-input h-11" placeholder="Name" required />
               <input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="field-input h-11" placeholder="Email" required />
               <input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className="field-input h-11" placeholder="Phone" />
-              <select value={editForm.roleId} onChange={(e) => setEditForm({ ...editForm, roleId: e.target.value as RoleId })} className="field-input h-11">
+              <select
+                value={editForm.roleId}
+                onChange={(e) => setEditForm({ ...editForm, roleId: e.target.value as RoleId })}
+                disabled={isLastActiveSuperAdministrator(users, editUser.id)}
+                className="field-input h-11"
+              >
                 {assignableRoleOptions.map((role) => (
                   <option key={role.id} value={role.id}>{role.name}</option>
                 ))}
               </select>
-              <select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as typeof editForm.status })} className="field-input h-11">
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value as typeof editForm.status })}
+                disabled={isLastActiveSuperAdministrator(users, editUser.id)}
+                className="field-input h-11"
+              >
                 <option value="Active">Active</option>
                 <option value="Invited">Invited</option>
                 <option value="Disabled">Disabled</option>
               </select>
             </div>
+            {actionError ? (
+              <p className="mt-3 text-sm text-danger" role="alert">{actionError}</p>
+            ) : null}
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setEditUserId(null)} className="rounded-xl border border-border px-4 py-2 text-sm">Cancel</button>
-              <button type="submit" className="rounded-xl bg-brand px-4 py-2 text-sm text-white">Save changes</button>
+              <button type="submit" disabled={saving} className="rounded-xl bg-brand px-4 py-2 text-sm text-white disabled:opacity-60">
+                {saving ? "Saving…" : "Save changes"}
+              </button>
             </div>
           </form>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete user?"
+        description={
+          deleteTarget
+            ? `Permanently remove ${deleteTarget.name} (${deleteTarget.email}). This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete user"
+        danger
+        loading={saving}
+        onCancel={() => setDeleteUserId(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          setSaving(true);
+          void deleteUser(deleteTarget.id).then((result) => {
+            setSaving(false);
+            if (!result.ok) {
+              setActionError(result.error);
+              return;
+            }
+            setActionError("");
+            setDeleteUserId(null);
+          });
+        }}
+      />
     </div>
   );
 }

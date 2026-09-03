@@ -30,8 +30,15 @@ export function RolesManager() {
     <div className="space-y-6">
       <PageHeader
         title="Roles & permissions"
-        description="Six fixed roles with module-level access and action permissions. Open a role to view its permission matrix."
+        description="Six fixed roles. Super Administrator is locked at the highest level. Super Administrators can assign or revoke operational permissions on the other five roles."
       />
+
+      <div className="rounded-2xl border border-brand/20 bg-brand-soft/50 px-5 py-4 text-sm text-muted">
+        Super Administrator permissions cannot be modified. Resort Manager, Front Desk,
+        Housekeeping, Content Manager, and Finance cannot change Super Administrator
+        accounts or access system-level controls (users, roles, integrations, audit logs,
+        and critical settings).
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {roles.map((role) => {
@@ -55,6 +62,9 @@ export function RolesManager() {
                     {role.name}
                   </h2>
                   <p className="mt-1 line-clamp-2 text-sm text-muted">{role.description}</p>
+                  {role.id === "super_administrator" ? (
+                    <p className="mt-2 text-xs font-medium text-brand">Locked · full system access</p>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2 text-xs">

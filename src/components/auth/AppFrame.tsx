@@ -36,7 +36,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     isPublicSiteMode &&
     isCmsEditRoute(pathname) &&
     !!currentUser &&
-    canEditCmsContent(currentUser.roleId);
+    canEditCmsContent(currentUser.roleId, currentUser.permissions);
 
   useEffect(() => {
     if (!ready) return;
@@ -46,14 +46,19 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
     }
     if (currentUser && isLogin) {
       const destination =
-        isPublicSiteMode && canEditCmsContent(currentUser.roleId)
+        isPublicSiteMode && canEditCmsContent(currentUser.roleId, currentUser.permissions)
           ? "/"
-          : getDefaultRoute(currentUser.roleId);
+          : getDefaultRoute(currentUser.roleId, currentUser.permissions);
       router.replace(destination);
       return;
     }
-    if (currentUser && !isLogin && !isPublic && !canAccessRoute(currentUser.roleId, pathname)) {
-      router.replace(getDefaultRoute(currentUser.roleId));
+    if (
+      currentUser &&
+      !isLogin &&
+      !isPublic &&
+      !canAccessRoute(currentUser.roleId, pathname, currentUser.permissions)
+    ) {
+      router.replace(getDefaultRoute(currentUser.roleId, currentUser.permissions));
     }
   }, [ready, currentUser, isLogin, isPublic, pathname, router]);
 

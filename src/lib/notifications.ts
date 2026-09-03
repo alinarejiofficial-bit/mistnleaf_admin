@@ -47,63 +47,6 @@ export const contentManagerNotificationGroups: ContentNotificationGroup[] = [
   "System / Permissions",
 ];
 
-export const contentManagerNotificationTopics = [
-  {
-    group: "Content Update" as const,
-    items: [
-      "Homepage content updated",
-      "About/intro content updated",
-      "Room information updated",
-      "FAQ/contact information updated",
-    ],
-  },
-  {
-    group: "New Content Request" as const,
-    items: [
-      "Management requests new website content",
-      "New room/offer/experience needs to be published",
-    ],
-  },
-  {
-    group: "Content Approval" as const,
-    items: [
-      "Content approved for publishing",
-      "Content rejected / changes requested",
-    ],
-  },
-  {
-    group: "Publishing" as const,
-    items: [
-      "Content successfully published",
-      "Content scheduled for publishing",
-      "Content unpublished",
-    ],
-  },
-  {
-    group: "Media / Asset" as const,
-    items: [
-      "New gallery upload",
-      "Image/video upload completed",
-      "Asset deleted or replaced",
-    ],
-  },
-  {
-    group: "Offers & Testimonials" as const,
-    items: [
-      "New offer created/updated for website",
-      "Testimonial submitted for review",
-      "Testimonial approved/rejected",
-    ],
-  },
-  {
-    group: "System / Permissions" as const,
-    items: [
-      "Website CMS permission changed",
-      "Content Manager role/permissions updated",
-    ],
-  },
-];
-
 const operationalNotifications: AppNotification[] = [
   {
     id: "NTF-01",

@@ -14,81 +14,87 @@ import {
 import { RoleDashboardHeader } from "@/components/dashboard/RoleDashboardHeader";
 import { DashboardQuickActions } from "@/components/dashboard/DashboardQuickActions";
 import { usePermissions } from "@/components/auth/usePermissions";
+import { useOps } from "@/components/ops/OpsProvider";
 import { getDashboardConfig } from "@/lib/dashboard-registry";
-import {
-  financePayments,
-  financeSummary,
-  formatINR,
-  financeStatusStyles,
-  revenueByPaymentMethod,
-} from "@/lib/finance-data";
+import { financeStatusStyles, formatINR } from "@/lib/finance-data";
 import { formatDisplayDate } from "@/lib/data";
-
-const kpiCards = [
-  {
-    key: "totalRevenue",
-    label: "Total revenue",
-    value: formatINR(financeSummary.totalRevenue),
-    icon: TrendingUp,
-    tone: "border-brand/20 bg-brand-soft/60",
-  },
-  {
-    key: "todaysRevenue",
-    label: "Today's revenue",
-    value: formatINR(financeSummary.todaysRevenue),
-    icon: IndianRupee,
-    tone: "border-success/20 bg-[#e8f3ec]/70",
-  },
-  {
-    key: "monthlyRevenue",
-    label: "Monthly revenue",
-    value: formatINR(financeSummary.monthlyRevenue),
-    icon: TrendingUp,
-    tone: "border-brand/20 bg-brand-soft/50",
-  },
-  {
-    key: "pendingPayments",
-    label: "Pending payments",
-    value: String(financeSummary.pendingPayments),
-    icon: AlertCircle,
-    tone: "border-accent/30 bg-accent-soft/70",
-  },
-  {
-    key: "partiallyPaidBookings",
-    label: "Partially paid",
-    value: String(financeSummary.partiallyPaidBookings),
-    icon: CreditCard,
-    tone: "border-info/20 bg-[#e7f0f5]/70",
-  },
-  {
-    key: "outstandingBalances",
-    label: "Outstanding balances",
-    value: formatINR(financeSummary.outstandingBalances),
-    icon: AlertCircle,
-    tone: "border-danger/20 bg-[#f8e9e6]/60",
-  },
-  {
-    key: "refundedPayments",
-    label: "Refunded payments",
-    value: String(financeSummary.refundedPayments),
-    icon: RefreshCcw,
-    tone: "border-border-subtle bg-surface-muted/70",
-  },
-  {
-    key: "failedPayments",
-    label: "Failed payments",
-    value: String(financeSummary.failedPayments),
-    icon: XCircle,
-    tone: "border-danger/20 bg-[#f8e9e6]/60",
-  },
-];
 
 export function FinanceDashboard() {
   const { roleId } = usePermissions();
+  const { financePayments, financeRefunds, summary, bookings } = useOps();
   const config = roleId ? getDashboardConfig(roleId) : null;
+  const outstanding = bookings.reduce(
+    (sum, booking) => sum + Math.max(0, booking.amount - booking.paidAmount),
+    0,
+  );
+  const kpiCards = [
+    {
+      key: "totalRevenue",
+      label: "Total revenue",
+      value: formatINR(bookings.reduce((sum, booking) => sum + booking.paidAmount, 0)),
+      icon: TrendingUp,
+      tone: "border-brand/20 bg-brand-soft/60",
+    },
+    {
+      key: "todaysRevenue",
+      label: "Today's revenue",
+      value: formatINR(summary.todaysRevenue),
+      icon: IndianRupee,
+      tone: "border-success/20 bg-[#e8f3ec]/70",
+    },
+    {
+      key: "monthlyRevenue",
+      label: "Monthly revenue",
+      value: formatINR(summary.monthlyRevenue),
+      icon: TrendingUp,
+      tone: "border-brand/20 bg-brand-soft/50",
+    },
+    {
+      key: "pendingPayments",
+      label: "Pending payments",
+      value: String(financePayments.filter((item) => item.status === "Pending").length),
+      icon: AlertCircle,
+      tone: "border-accent/30 bg-accent-soft/70",
+    },
+    {
+      key: "partiallyPaidBookings",
+      label: "Partially paid",
+      value: String(bookings.filter((booking) => booking.paymentStatus === "Partial").length),
+      icon: CreditCard,
+      tone: "border-info/20 bg-[#e7f0f5]/70",
+    },
+    {
+      key: "outstandingBalances",
+      label: "Outstanding balances",
+      value: formatINR(outstanding),
+      icon: AlertCircle,
+      tone: "border-danger/20 bg-[#f8e9e6]/60",
+    },
+    {
+      key: "refundedPayments",
+      label: "Refunded payments",
+      value: String(financeRefunds.length),
+      icon: RefreshCcw,
+      tone: "border-border-subtle bg-surface-muted/70",
+    },
+    {
+      key: "failedPayments",
+      label: "Failed payments",
+      value: String(financePayments.filter((item) => item.status === "Failed").length),
+      icon: XCircle,
+      tone: "border-danger/20 bg-[#f8e9e6]/60",
+    },
+  ];
   const recent = [...financePayments]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 6);
+  const methodTotals = [
+    { label: "UPI", amount: financePayments.filter((item) => item.method === "UPI").reduce((sum, item) => sum + item.amount, 0) },
+    { label: "Card", amount: financePayments.filter((item) => item.method === "Card").reduce((sum, item) => sum + item.amount, 0) },
+    { label: "Cash", amount: financePayments.filter((item) => item.method === "Cash").reduce((sum, item) => sum + item.amount, 0) },
+    { label: "Bank Transfer", amount: financePayments.filter((item) => item.method === "Bank Transfer").reduce((sum, item) => sum + item.amount, 0) },
+  ].filter((item) => item.amount > 0);
+  const methodMax = Math.max(1, ...methodTotals.map((item) => item.amount));
 
   return (
     <div className="space-y-6">
@@ -187,7 +193,7 @@ export function FinanceDashboard() {
           <h2 className="font-display text-xl text-foreground">Revenue overview</h2>
           <p className="mt-1 text-sm text-muted">By payment method — current month</p>
           <ul className="mt-4 space-y-3">
-            {revenueByPaymentMethod.map((item) => (
+            {methodTotals.map((item) => (
               <li key={item.label}>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-foreground">{item.label}</span>
@@ -197,7 +203,7 @@ export function FinanceDashboard() {
                   <div
                     className="h-full rounded-full bg-brand-mid"
                     style={{
-                      width: `${Math.round((item.amount / 624000) * 72)}%`,
+                      width: `${Math.round((item.amount / methodMax) * 100)}%`,
                     }}
                   />
                 </div>

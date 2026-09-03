@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { canEditCmsContent } from "@/lib/cms-api-auth";
+import { uploadCmsMediaFile } from "@/lib/cms-api-client";
 import {
   AlertTriangle,
   Bold,
+  CheckCircle2,
   Eye,
   ImageIcon,
   Italic,
@@ -14,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import type { PublishStatus } from "@/lib/cms-data";
+import { togglePublishStatus } from "@/lib/cms-data";
 
 export function PublishBadge({ status }: { status: PublishStatus }) {
   return (
@@ -26,6 +32,57 @@ export function PublishBadge({ status }: { status: PublishStatus }) {
     >
       {status === "Published" ? "Published" : "Draft"}
     </span>
+  );
+}
+
+/** Publish / unpublish control for CMS edit forms and section editors. */
+export function PublishStatusField({
+  status,
+  onChange,
+}: {
+  status: PublishStatus;
+  onChange: (status: PublishStatus) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-muted/30 px-4 py-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">Visibility</p>
+        <p className="text-xs text-muted">
+          {status === "Published"
+            ? "Live on the public website."
+            : "Draft — hidden from the public site until published."}
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <PublishBadge status={status} />
+        <button
+          type="button"
+          onClick={() => onChange(togglePublishStatus(status))}
+          className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-muted"
+        >
+          {status === "Published" ? "Unpublish" : "Publish"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Compact publish / unpublish button for list rows and cards. */
+export function PublishListButton({
+  status,
+  onToggle,
+}: {
+  status: PublishStatus;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="rounded-lg border border-border px-2 py-1 text-xs font-medium hover:bg-surface-muted"
+    >
+      {status === "Published" ? "Unpublish" : "Publish"}
+    </button>
   );
 }
 
@@ -77,23 +134,85 @@ export function Toast({
   tone?: "success" | "error";
   onClose: () => void;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(onClose, 2800);
     return () => window.clearTimeout(timer);
+  }, [onClose, message]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className={`fixed right-4 bottom-4 z-[70] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
-        tone === "success"
-          ? "bg-brand text-white"
-          : "border border-danger/20 bg-[#f8e9e6] text-danger"
-      }`}
-      role="status"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      role="alertdialog"
+      aria-modal="true"
+      aria-live="polite"
+      aria-labelledby="cms-toast-title"
+      aria-describedby="cms-toast-message"
     >
-      {message}
-    </div>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={onClose}
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-[1px]"
+      />
+      <div
+        className="relative z-10 w-full max-w-sm rounded-2xl border border-border-subtle bg-surface p-5 text-center shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <span
+          className={`mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full ${
+            tone === "success" ? "bg-[#e8f3ec] text-success" : "bg-[#f8e9e6] text-danger"
+          }`}
+        >
+          {tone === "success" ? (
+            <CheckCircle2 className="h-6 w-6" />
+          ) : (
+            <AlertTriangle className="h-6 w-6" />
+          )}
+        </span>
+        <h3 id="cms-toast-title" className="mt-3 font-display text-xl text-foreground">
+          {tone === "success" ? "Saved" : "Something went wrong"}
+        </h3>
+        <p id="cms-toast-message" className="mt-2 text-sm text-muted">
+          {message}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-5 rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-hover"
+        >
+          OK
+        </button>
+      </div>
+    </div>,
+    document.body,
   );
+}
+
+export function ToastPortal({
+  toast,
+  onClose,
+}: {
+  toast: { message: string; tone: "success" | "error" } | null;
+  onClose: () => void;
+}) {
+  if (!toast) return null;
+  return <Toast message={toast.message} tone={toast.tone} onClose={onClose} />;
 }
 
 export function SearchField({
@@ -204,6 +323,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = "Delete",
+  confirmTone = "danger",
   onConfirm,
   onCancel,
 }: {
@@ -211,6 +331,7 @@ export function ConfirmDialog({
   title: string;
   message: string;
   confirmLabel?: string;
+  confirmTone?: "danger" | "brand";
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -226,7 +347,13 @@ export function ConfirmDialog({
       />
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-border-subtle bg-surface p-5 shadow-xl">
         <div className="flex items-start gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#f8e9e6] text-danger">
+          <span
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${
+              confirmTone === "danger"
+                ? "bg-[#f8e9e6] text-danger"
+                : "bg-brand-soft text-brand"
+            }`}
+          >
             <AlertTriangle className="h-5 w-5" />
           </span>
           <div>
@@ -245,7 +372,9 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-xl bg-danger px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+            className={`rounded-xl px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 ${
+              confirmTone === "danger" ? "bg-danger" : "bg-brand hover:bg-brand-hover"
+            }`}
           >
             {confirmLabel}
           </button>
@@ -268,9 +397,25 @@ export function RichTextEditor({
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    // Avoid resetting the DOM while the user is typing — that jumps the caret to the start.
+    if (document.activeElement === el) return;
+    if (el.innerHTML !== value) {
+      el.innerHTML = value;
+    }
+  }, [value]);
+
+  function emitChange() {
+    if (!editorRef.current) return;
+    onChange(editorRef.current.innerHTML);
+  }
+
   function exec(command: string) {
+    editorRef.current?.focus();
     document.execCommand(command, false);
-    if (editorRef.current) onChange(editorRef.current.innerHTML);
+    emitChange();
   }
 
   return (
@@ -292,10 +437,7 @@ export function RichTextEditor({
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
-          onInput={() => {
-            if (editorRef.current) onChange(editorRef.current.innerHTML);
-          }}
-          dangerouslySetInnerHTML={{ __html: value }}
+          onInput={emitChange}
           data-placeholder={placeholder}
           className="cms-editor min-h-[120px] px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none"
         />
@@ -336,15 +478,28 @@ export function ImageUploadField({
   onChange: (value: string) => void;
   hint?: string;
 }) {
-  function handleFile(file: File | null) {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return;
+  const { currentUser } = useAuth();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") onChange(reader.result);
-    };
-    reader.readAsDataURL(file);
+  async function handleFile(file: File | null) {
+    if (!file || !file.type.startsWith("image/")) return;
+
+    if (!currentUser || !canEditCmsContent(currentUser.roleId, currentUser.permissions)) {
+      setUploadError("Log in as Website Content Manager to upload images.");
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadCmsMediaFile(file, currentUser.roleId, currentUser.id);
+      onChange(url);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Image upload failed.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -366,19 +521,34 @@ export function ImageUploadField({
           </div>
         ) : (
           <div className="mb-3 flex h-40 items-center justify-center rounded-xl border border-dashed border-border bg-surface">
-            <ImageIcon className="h-8 w-8 text-muted/50" />
+            {uploading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-brand-mid" />
+            ) : (
+              <ImageIcon className="h-8 w-8 text-muted/50" />
+            )}
           </div>
         )}
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-muted">
+        <label
+          className={`inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground transition hover:bg-surface-muted ${
+            uploading ? "pointer-events-none opacity-60" : "cursor-pointer"
+          }`}
+        >
           <Upload className="h-4 w-4" />
-          Upload image
+          {uploading ? "Uploading…" : "Upload image"}
           <input
             type="file"
             accept="image/*"
             className="sr-only"
-            onChange={(event) => handleFile(event.target.files?.[0] ?? null)}
+            disabled={uploading}
+            onChange={(event) => {
+              void handleFile(event.target.files?.[0] ?? null);
+              event.target.value = "";
+            }}
           />
         </label>
+        {uploadError ? (
+          <p className="mt-2 text-xs text-danger">{uploadError}</p>
+        ) : null}
         {hint ? <p className="mt-2 text-xs text-muted">{hint}</p> : null}
       </div>
     </div>
@@ -488,10 +658,12 @@ export function useToast() {
     tone: "success" | "error";
   } | null>(null);
 
+  const clearToast = useCallback(() => setToast(null), []);
+
   return {
     toast,
     showSuccess: (message: string) => setToast({ message, tone: "success" }),
     showError: (message: string) => setToast({ message, tone: "error" }),
-    clearToast: () => setToast(null),
+    clearToast,
   };
 }

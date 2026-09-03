@@ -6,6 +6,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { canEditCmsContent } from "@/lib/cms-api-auth";
 import {
   getPublicSiteSection,
+  getHomepageEditorHref,
+  homepageEditorSections,
   type PublicSiteSectionId,
 } from "@/lib/public-site-sections";
 
@@ -18,7 +20,13 @@ type PublicSiteSectionProps = {
 export function PublicSiteSection({ sectionId, children, className = "" }: PublicSiteSectionProps) {
   const { currentUser } = useAuth();
   const config = getPublicSiteSection(sectionId);
-  const canEdit = currentUser && canEditCmsContent(currentUser.roleId);
+  const canEdit = currentUser && canEditCmsContent(currentUser.roleId, currentUser.permissions);
+  const isHomepageSection = homepageEditorSections.some((section) => section.id === sectionId);
+  const editHref = config
+    ? isHomepageSection
+      ? getHomepageEditorHref(config)
+      : `/website/${config.cmsSection}`
+    : `/website/${sectionId}`;
 
   if (!config) return <section className={className}>{children}</section>;
 
@@ -27,7 +35,7 @@ export function PublicSiteSection({ sectionId, children, className = "" }: Publi
       {canEdit ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-end p-4 sm:p-6">
           <Link
-            href={`/website/${config.cmsSection}`}
+            href={editHref}
             className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-[#9dceb8]/40 bg-[#0f1a14]/90 px-4 py-2 text-sm font-medium text-[#9dceb8] shadow-lg backdrop-blur-sm transition hover:border-[#9dceb8] hover:bg-[#1b4d3e]/80 hover:text-white"
           >
             <Pencil className="h-3.5 w-3.5" />

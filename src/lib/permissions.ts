@@ -51,6 +51,7 @@ export type AppAction =
   | "users.view"
   | "users.manageStaff"
   | "users.manageAll"
+  | "users.delete"
   | "roles.manage"
   | "settings.full"
   | "settings.limited"
@@ -144,6 +145,7 @@ const actionPermissions: Record<AppAction, Permission[]> = {
   "users.view": ["manage_users", "manage_staff"],
   "users.manageStaff": ["manage_staff"],
   "users.manageAll": ["manage_users"],
+  "users.delete": ["manage_users"],
   "roles.manage": ["manage_roles"],
   "settings.full": ["manage_settings"],
   "settings.limited": ["view_limited_settings", "manage_pricing"],
@@ -183,9 +185,13 @@ const actionPermissions: Record<AppAction, Permission[]> = {
   "cms.preview": ["manage_website", "update_website_content"],
 };
 
-export function canPerformAction(roleId: RoleId, action: AppAction): boolean {
+export function canPerformAction(
+  roleId: RoleId,
+  action: AppAction,
+  livePermissions?: Permission[],
+): boolean {
   const required = actionPermissions[action];
-  return hasAnyPermission(roleId, required);
+  return hasAnyPermission(roleId, required, livePermissions);
 }
 
 export function getActionPermissions(action: AppAction): Permission[] {
@@ -219,9 +225,10 @@ export function isWebsiteContentManager(roleId: RoleId) {
 export function canPerformActionOrSuper(
   roleId: RoleId,
   action: AppAction,
+  livePermissions?: Permission[],
 ): boolean {
   if (isSuperAdmin(roleId)) return true;
-  return canPerformAction(roleId, action);
+  return canPerformAction(roleId, action, livePermissions);
 }
 
 /** Super Administrator quick actions for the system dashboard. */

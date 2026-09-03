@@ -5,10 +5,11 @@ import { createId, useCms } from "@/components/cms/CmsProvider";
 import {
   CmsModal,
   FormActions,
+  PublishStatusField,
   RichTextEditor,
   useToast,
 } from "@/components/cms/CmsShared";
-import type { CmsWebsiteOffer, PublishStatus } from "@/lib/cms-data";
+import type { CmsWebsiteOffer } from "@/lib/cms-data";
 
 export function emptyOffer(): CmsWebsiteOffer {
   return {
@@ -27,7 +28,7 @@ export function emptyOffer(): CmsWebsiteOffer {
     validFrom: "",
     validTo: "",
     active: true,
-    status: "Draft",
+    status: "Published",
     updatedAt: new Date().toISOString().slice(0, 10),
   };
 }
@@ -37,9 +38,16 @@ type OfferEditModalProps = {
   offer: CmsWebsiteOffer | null;
   isNew?: boolean;
   onClose: () => void;
+  onSaved?: (offer: CmsWebsiteOffer) => void;
 };
 
-export function OfferEditModal({ open, offer, isNew = false, onClose }: OfferEditModalProps) {
+export function OfferEditModal({
+  open,
+  offer,
+  isNew = false,
+  onClose,
+  onSaved,
+}: OfferEditModalProps) {
   const { saveOffer } = useCms();
   const { showSuccess } = useToast();
   const [form, setForm] = useState<CmsWebsiteOffer>(emptyOffer());
@@ -60,11 +68,13 @@ export function OfferEditModal({ open, offer, isNew = false, onClose }: OfferEdi
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
-          saveOffer({
+          const next: CmsWebsiteOffer = {
             ...form,
             id: isNew ? createId("cms-offer") : form.id,
             updatedAt: new Date().toISOString().slice(0, 10),
-          });
+          };
+          saveOffer(next);
+          onSaved?.(next);
           onClose();
           showSuccess("Offer saved.");
         }}
@@ -164,23 +174,11 @@ export function OfferEditModal({ open, offer, isNew = false, onClose }: OfferEdi
             />
             Active on website
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="font-medium">Status</span>
-            <select
-              value={form.status}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  status: e.target.value as PublishStatus,
-                }))
-              }
-              className="field-input h-10"
-            >
-              <option value="Published">Published</option>
-              <option value="Draft">Draft</option>
-            </select>
-          </label>
         </div>
+        <PublishStatusField
+          status={form.status}
+          onChange={(status) => setForm((prev) => ({ ...prev, status }))}
+        />
         <FormActions onCancel={onClose} />
       </form>
     </CmsModal>

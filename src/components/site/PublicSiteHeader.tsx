@@ -12,7 +12,7 @@ import { publicSiteNavSections } from "@/lib/public-site-sections";
 export function PublicSiteHeader() {
   const pathname = usePathname();
   const { currentUser } = useAuth();
-  const isEditor = currentUser && canEditCmsContent(currentUser.roleId);
+  const isEditor = currentUser && canEditCmsContent(currentUser.roleId, currentUser.permissions);
   const homeHref = getPublicSiteBasePath() || "/";
 
   return (

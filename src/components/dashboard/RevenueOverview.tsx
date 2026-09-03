@@ -2,11 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
-import {
-  formatINR,
-  revenueByPeriod,
-  type RevenuePeriod,
-} from "@/lib/data";
+import { useOps } from "@/components/ops/OpsProvider";
+import { formatINR, type RevenuePeriod } from "@/lib/data";
 
 const periodOptions: { value: RevenuePeriod; label: string }[] = [
   { value: "today", label: "Today" },
@@ -15,14 +12,15 @@ const periodOptions: { value: RevenuePeriod; label: string }[] = [
 ];
 
 export function RevenueOverview() {
+  const { revenue } = useOps();
   const [period, setPeriod] = useState<RevenuePeriod>("monthly");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
-  const data = revenueByPeriod[period];
-  const roomTypeMax = Math.max(...data.byRoomType.map((item) => item.amount));
-  const sourceMax = Math.max(...data.byBookingSource.map((item) => item.amount));
-  const paymentTotal = data.onlinePayments + data.offlinePayments;
+  const data = revenue[period];
+  const roomTypeMax = Math.max(1, ...data.byRoomType.map((item) => item.amount));
+  const sourceMax = Math.max(1, ...data.byBookingSource.map((item) => item.amount));
+  const paymentTotal = data.onlinePayments + data.offlinePayments || 1;
 
   const periodLabel = useMemo(() => {
     if (customFrom && customTo) {

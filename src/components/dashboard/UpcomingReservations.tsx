@@ -1,8 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useOps } from "@/components/ops/OpsProvider";
 import {
   formatDisplayDate,
   formatINR,
-  upcomingReservations,
   type ReservationStatus,
 } from "@/lib/data";
 
@@ -15,6 +17,15 @@ const statusStyles: Record<ReservationStatus, string> = {
 };
 
 export function UpcomingReservations() {
+  const { bookings, today } = useOps();
+  const upcoming = bookings
+    .filter(
+      (booking) =>
+        booking.checkIn >= today &&
+        (booking.status === "Confirmed" || booking.status === "Pending"),
+    )
+    .slice(0, 6);
+
   return (
     <section className="rounded-2xl border border-border-subtle bg-surface shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4 sm:px-6">
@@ -43,7 +54,7 @@ export function UpcomingReservations() {
             </tr>
           </thead>
           <tbody>
-            {upcomingReservations.map((reservation) => (
+            {upcoming.map((reservation) => (
               <tr
                 key={reservation.id}
                 className="border-t border-border-subtle transition hover:bg-surface-muted/40"
@@ -79,6 +90,13 @@ export function UpcomingReservations() {
                 </td>
               </tr>
             ))}
+            {upcoming.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-sm text-muted">
+                  No upcoming website or desk bookings yet.
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>

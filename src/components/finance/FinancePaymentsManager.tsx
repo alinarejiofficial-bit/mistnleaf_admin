@@ -6,18 +6,19 @@ import { PermissionGate } from "@/components/auth/PermissionGate";
 import { FinanceGreeting } from "@/components/finance/FinanceGreeting";
 import {
   financePaymentMethods,
-  financePayments,
   financePaymentStatuses,
   financeStatusStyles,
   formatINR,
   type FinancePaymentMethod,
   type FinancePaymentStatus,
 } from "@/lib/finance-data";
+import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyRow, SectionCard } from "@/components/ui/ModulePrimitives";
 
 export function FinancePaymentsManager() {
+  const { financePayments, recordPayment } = useOps();
   const [query, setQuery] = useState("");
   const [method, setMethod] = useState<"All" | FinancePaymentMethod>("All");
   const [status, setStatus] = useState<"All" | FinancePaymentStatus>("All");
@@ -39,7 +40,7 @@ export function FinancePaymentsManager() {
         payment.id.toLowerCase().includes(q)
       );
     });
-  }, [query, method, status, dateFrom, dateTo]);
+  }, [query, method, status, dateFrom, dateTo, financePayments]);
 
   return (
     <div className="space-y-6">
@@ -62,7 +63,10 @@ export function FinancePaymentsManager() {
             <PermissionGate action="payments.record">
               <button
                 type="button"
-                onClick={() => window.alert("Record payment form (demo).")}
+                onClick={() => {
+                  const pending = financePayments.find((item) => item.status === "Pending" || item.status === "Partially Paid");
+                  if (pending) void recordPayment(pending.bookingId);
+                }}
                 className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
               >
                 <Plus className="h-4 w-4" />

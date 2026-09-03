@@ -4,6 +4,17 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { HomepageHeroEditor } from "@/components/cms/HomepageHeroEditor";
+import { HomepageAboutEditor } from "@/components/cms/HomepageAboutEditor";
+import {
+  HomepageAmenitiesEditor,
+  HomepageExperiencesEditor,
+  HomepageFaqsEditor,
+  HomepageFeaturedRoomsEditor,
+  HomepageGalleryEditor,
+  HomepageLocationEditor,
+  HomepageOffersEditor,
+  HomepageTestimonialsEditor,
+} from "@/components/cms/HomepageBlockEditors";
 import { HomepageSectionsOverview } from "@/components/cms/HomepageSectionsOverview";
 import { RoomEditModal } from "@/components/cms/RoomEditModal";
 import { useCms } from "@/components/cms/CmsProvider";
@@ -15,6 +26,7 @@ import {
   PublishBadge,
   SearchField,
   stripHtml,
+  ToastPortal,
   useToast,
 } from "@/components/cms/CmsShared";
 import { formatDisplayDate } from "@/lib/data";
@@ -28,10 +40,46 @@ type PreviewHandler = (section: string, data?: unknown) => void;
 
 export function HomepageSection({ onPreview }: { onPreview: PreviewHandler }) {
   const searchParams = useSearchParams();
-  const editingHero = searchParams.get("edit") === "hero";
+  const editMode = searchParams.get("edit");
 
-  if (editingHero) {
+  if (editMode === "hero") {
     return <HomepageHeroEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "about") {
+    return <HomepageAboutEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "rooms") {
+    return <HomepageFeaturedRoomsEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "experiences") {
+    return <HomepageExperiencesEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "amenities") {
+    return <HomepageAmenitiesEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "gallery") {
+    return <HomepageGalleryEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "offers") {
+    return <HomepageOffersEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "testimonials") {
+    return <HomepageTestimonialsEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "location") {
+    return <HomepageLocationEditor onPreview={onPreview} />;
+  }
+
+  if (editMode === "faqs") {
+    return <HomepageFaqsEditor onPreview={onPreview} />;
   }
 
   return <HomepageSectionsOverview />;
@@ -39,7 +87,7 @@ export function HomepageSection({ onPreview }: { onPreview: PreviewHandler }) {
 
 export function RoomContentSection({ onPreview }: { onPreview: PreviewHandler }) {
   const { content, saveRoom, deleteRoom } = useCms();
-  const { toast, showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | PublishStatus>("All");
   const [modal, setModal] = useState<CmsRoomContent | "new" | null>(null);
@@ -66,7 +114,7 @@ export function RoomContentSection({ onPreview }: { onPreview: PreviewHandler })
     <div className="space-y-5">
       <SectionHeader
         title="Room content"
-        description="Manage public room pages — descriptions, images, amenities, and capacity."
+        description="Manage public room pages — descriptions, images, amenities, and capacity. Published rooms sync to the live website at localhost:3001/rooms/."
         actions={
           <button
             type="button"
@@ -174,12 +222,7 @@ export function RoomContentSection({ onPreview }: { onPreview: PreviewHandler })
           showSuccess("Room deleted.");
         }}
       />
-
-      {toast ? (
-        <div className="fixed right-4 bottom-4 z-[70] rounded-xl bg-brand px-4 py-3 text-sm text-white shadow-lg">
-          {toast.message}
-        </div>
-      ) : null}
+      <ToastPortal toast={toast} onClose={clearToast} />
     </div>
   );
 }

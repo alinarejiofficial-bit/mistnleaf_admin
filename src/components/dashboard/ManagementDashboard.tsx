@@ -16,9 +16,11 @@ import { RoleDashboardHeader } from "@/components/dashboard/RoleDashboardHeader"
 import { StatCards } from "@/components/dashboard/StatCards";
 import { UpcomingReservations } from "@/components/dashboard/UpcomingReservations";
 import { getDashboardConfig } from "@/lib/dashboard-registry";
+import { useOps } from "@/components/ops/OpsProvider";
 
 export function ManagementDashboard() {
   const { can, roleId, isResortManager } = usePermissions();
+  const { summary } = useOps();
   const config = roleId ? getDashboardConfig(roleId) : null;
 
   return (
@@ -37,17 +39,17 @@ export function ManagementDashboard() {
             <QuickStat
               icon={<CalendarCheck className="h-4 w-4" />}
               label="Check-ins today"
-              value="6"
+              value={String(summary.todaysCheckIns)}
             />
             <QuickStat
               icon={<CalendarMinus className="h-4 w-4" />}
               label="Check-outs today"
-              value="4"
+              value={String(summary.todaysCheckOuts)}
             />
             <QuickStat
               icon={<Sparkles className="h-4 w-4" />}
               label="Rooms cleaning"
-              value="4"
+              value={String(summary.cleaningRequired)}
             />
           </div>
         </>

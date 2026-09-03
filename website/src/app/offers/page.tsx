@@ -1,24 +1,32 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { CmsSectionEdit } from "@/components/cms/CmsSectionEdit";
 import { CtaBand, PageIntro, Section } from "@/components/PageShell";
-import { formatInr, offers } from "@/lib/site";
+import { getSiteContent } from "@/lib/cms/get-site-content";
+import { formatInr } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Offers & Packages",
   description: "Seasonal packages and stay inclusions at Mistnleaf.",
 };
 
-export default function OffersPage() {
+export default async function OffersPage() {
+  const content = await getSiteContent();
+
   return (
     <>
-      <PageIntro
-        eyebrow="Packages"
-        title="Offers & Packages"
-        lead="Thoughtful combinations of stay, meals, and experiences — without the clutter."
+          <PageIntro
+        eyebrow={content.offersSection.eyebrow}
+        title={content.offersSection.title}
+        lead={content.offersSection.subtitle}
       />
-      <Section className="pt-0">
+      <Section className="relative pt-0">
+        <Suspense fallback={null}>
+          <CmsSectionEdit section="offers" label="Offers" adminPath="/website/offers" />
+        </Suspense>
         <div className="border-b border-line">
-          {offers.map((offer, index) => (
+          {content.offers.map((offer, index) => (
             <article key={offer.title} className="offer-panel">
               <p className="offer-index" aria-hidden>
                 {String(index + 1).padStart(2, "0")}

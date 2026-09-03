@@ -368,6 +368,7 @@ export const accountantModuleAccess: { module: string; access: string }[] = [
 export const websiteContentManagerPermissions: Permission[] = [
   "view_dashboard",
   "view_notifications",
+  "manage_website",
   "update_website_content",
   "manage_images",
   "manage_room_descriptions",
@@ -482,7 +483,9 @@ export const roles: Role[] = [
   {
     id: "super_administrator",
     name: "Super Administrator",
-    description: "Full system access across every module.",
+    description:
+      "Highest-level system role with complete control over users, roles, permissions, operations, CMS, reports, audit logs, and system settings.",
+    note: "This role is locked. Super Administrator permissions cannot be modified, and lower-level roles cannot change Super Administrator accounts.",
     permissions: superAdministratorPermissions,
   },
   {
@@ -526,19 +529,78 @@ export function getRole(id: RoleId) {
   return roles.find((role) => role.id === id);
 }
 
-export function hasPermission(roleId: RoleId, permission: Permission) {
+export function hasPermission(roleId: RoleId, permission: Permission, livePermissions?: Permission[]) {
+  if (roleId === "super_administrator") return true;
+  // Empty arrays are treated as "unset" so a failed directory sync cannot lock users out.
+  if (livePermissions && livePermissions.length > 0) {
+    return livePermissions.includes(permission);
+  }
   return getRole(roleId)?.permissions.includes(permission) ?? false;
 }
 
-export function hasAnyPermission(roleId: RoleId, permissions: Permission[]) {
-  return permissions.some((permission) => hasPermission(roleId, permission));
+export function hasAnyPermission(roleId: RoleId, permissions: Permission[], livePermissions?: Permission[]) {
+  return permissions.some((permission) => hasPermission(roleId, permission, livePermissions));
 }
 
-export function getAssignableRolesFor(roleId: RoleId): Role[] {
-  if (hasPermission(roleId, "manage_users")) {
+export const LOCKED_ROLE_ID: RoleId = "super_administrator";
+
+export const SYSTEM_LEVEL_PERMISSIONS: Permission[] = [
+  "manage_settings",
+  "manage_users",
+  "manage_roles",
+  "manage_integrations",
+  "view_audit_logs",
+];
+
+export function isLockedRole(roleId: RoleId) {
+  return roleId === LOCKED_ROLE_ID;
+}
+
+export function canMutateStaffUser(
+  actor: { id: string; roleId: RoleId; permissions?: Permission[] },
+  target: { id: string; roleId: RoleId },
+) {
+  if (actor.id === target.id) return false;
+  if (
+    isLockedRole(target.roleId) &&
+    !hasPermission(actor.roleId, "manage_users", actor.permissions)
+  ) {
+    return false;
+  }
+  return (
+    hasPermission(actor.roleId, "manage_users", actor.permissions) ||
+    hasPermission(actor.roleId, "manage_staff", actor.permissions)
+  );
+}
+
+export function canDeleteStaffUser(
+  actor: { id: string; roleId: RoleId; permissions?: Permission[] },
+  target: { id: string; roleId: RoleId },
+) {
+  return (
+    hasPermission(actor.roleId, "manage_users", actor.permissions) &&
+    canMutateStaffUser(actor, target)
+  );
+}
+
+export function isLastActiveSuperAdministrator(
+  users: { id: string; roleId: RoleId; status: string }[],
+  targetId: string,
+) {
+  const active = users.filter(
+    (user) => user.roleId === "super_administrator" && user.status !== "Disabled",
+  );
+  return active.length <= 1 && active.some((user) => user.id === targetId);
+}
+
+export function getAssignableRolesFor(
+  roleId: RoleId,
+  livePermissions?: Permission[],
+): Role[] {
+  if (hasPermission(roleId, "manage_users", livePermissions)) {
     return assignableRoles;
   }
-  if (hasPermission(roleId, "manage_staff")) {
+  if (hasPermission(roleId, "manage_staff", livePermissions)) {
     return roles.filter((role) => resortManagerAssignableRoleIds.includes(role.id));
   }
   return [];
@@ -611,6 +673,7 @@ export type StaffUser = {
   status: "Active" | "Invited" | "Disabled";
   lastActive: string;
   createdAt: string;
+  permissions?: Permission[];
 };
 
 export const currentUser: StaffUser = {

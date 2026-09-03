@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { ImageUploadField } from "@/components/cms/CmsShared";
 import {
   emptyRoom,
   roomStatuses,
@@ -16,8 +17,9 @@ type RoomInventoryModalProps = {
   room: Room | null;
   isNew?: boolean;
   existingRooms: Room[];
+  roomTypesList?: string[];
   onClose: () => void;
-  onSave: (room: Room) => void;
+  onSave: (room: Room) => void | Promise<void>;
 };
 
 export function RoomInventoryModal({
@@ -25,11 +27,15 @@ export function RoomInventoryModal({
   room,
   isNew = false,
   existingRooms,
+  roomTypesList,
   onClose,
   onSave,
 }: RoomInventoryModalProps) {
+  const typeOptions = roomTypesList?.length ? roomTypesList : roomTypes;
   const [form, setForm] = useState<Room>(emptyRoom(existingRooms));
   const [amenitiesText, setAmenitiesText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -38,10 +44,11 @@ export function RoomInventoryModal({
       setAmenitiesText(room.amenities.join(", "));
     } else if (isNew) {
       const draft = emptyRoom(existingRooms);
+      draft.type = typeOptions[0] ?? draft.type;
       setForm(draft);
       setAmenitiesText(draft.amenities.join(", "));
     }
-  }, [open, room, isNew, existingRooms]);
+  }, [open, room, isNew, existingRooms, typeOptions.join("|")]);
 
   if (!open) return null;
 
@@ -78,14 +85,22 @@ export function RoomInventoryModal({
           className="overflow-y-auto px-5 py-4"
           onSubmit={(event) => {
             event.preventDefault();
-            onSave({
-              ...form,
-              amenities: amenitiesText
-                .split(",")
-                .map((item) => item.trim())
-                .filter(Boolean),
-            });
-            onClose();
+            setSaving(true);
+            setFormError("");
+            void Promise.resolve(
+              onSave({
+                ...form,
+                amenities: amenitiesText
+                  .split(",")
+                  .map((item) => item.trim())
+                  .filter(Boolean),
+              }),
+            )
+              .then(() => onClose())
+              .catch((err: unknown) => {
+                setFormError(err instanceof Error ? err.message : "Could not save room.");
+              })
+              .finally(() => setSaving(false));
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -115,19 +130,24 @@ export function RoomInventoryModal({
               />
             </Field>
             <Field label="Room type">
-              <select
+              <input
+                list="mistnleaf-room-types"
                 value={form.type}
                 onChange={(event) =>
                   setForm({ ...form, type: event.target.value as RoomType })
                 }
+                placeholder="Canopy Suite"
                 className="field-input h-11"
-              >
-                {roomTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
+                required
+              />
+              <datalist id="mistnleaf-room-types">
+                {typeOptions.map((type) => (
+                  <option key={type} value={type} />
                 ))}
-              </select>
+              </datalist>
+              <span className="mt-1 block text-xs text-muted">
+                Pick an existing type or type a new name to create one.
+              </span>
             </Field>
             <Field label="Status">
               <select
@@ -219,7 +239,12 @@ export function RoomInventoryModal({
             </Field>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-border-subtle pt-4">
+          <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-border-subtle pt-4">
+            {formError ? (
+              <p className="mr-auto text-sm text-danger" role="alert">
+                {formError}
+              </p>
+            ) : null}
             <button
               type="button"
               onClick={onClose}
@@ -229,9 +254,10 @@ export function RoomInventoryModal({
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-hover"
+              disabled={saving}
+              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
             >
-              {isNew ? "Add room" : "Save changes"}
+              {saving ? "Saving…" : isNew ? "Add room" : "Save changes"}
             </button>
           </div>
         </form>

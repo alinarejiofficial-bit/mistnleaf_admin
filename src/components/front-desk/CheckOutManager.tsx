@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { queueRoomForCleaningAfterCheckout } from "@/lib/checkout-cleaning";
-import { checkOutQueue, formatINR, today } from "@/lib/ops-data";
+import { formatINR } from "@/lib/ops-data";
+import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
 import { type Reservation } from "@/lib/reservations";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -13,19 +14,28 @@ import { useFloatingToast } from "@/components/ui/useFloatingToast";
 import { SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
 
 export function CheckOutManager() {
-  const [queue, setQueue] = useState(
-    checkOutQueue.filter((r) => r.status === "Checked-in"),
-  );
-  const [completed, setCompleted] = useState(
-    checkOutQueue.filter((r) => r.status === "Checked-out").length,
-  );
+  const { checkOutQueue, today, saveBooking, recordPayment, rooms, updateHousekeeping } = useOps();
+  const [queue, setQueue] = useState(checkOutQueue);
+  const [completed, setCompleted] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [cleaningQueued, setCleaningQueued] = useState<string[]>([]);
   const { showToast, toast } = useFloatingToast();
 
-  function completeCheckOut(id: string, room: string) {
-    setQueue((prev) => prev.filter((item) => item.id !== id));
+  useEffect(() => {
+    setQueue(checkOutQueue);
+  }, [checkOutQueue]);
+
+  async function completeCheckOut(id: string, room: string) {
+    const booking = queue.find((item) => item.id === id);
+    if (booking && booking.paidAmount < booking.amount) {
+      await recordPayment(id);
+    }
+    await saveBooking(id, { status: "Checked-out" });
+    const match = rooms.find((item) => item.name === room);
+    if (match) {
+      await updateHousekeeping(match.id, { status: "dirty", housekeeping_status: "dirty" });
+    }
     setCompleted((prev) => prev + 1);
     setCleaningQueued((prev) => [...prev, room]);
     queueRoomForCleaningAfterCheckout(room);
@@ -83,6 +93,7 @@ export function CheckOutManager() {
               }
               onCheckOut={() => setConfirmId(item.id)}
               onNotify={showToast}
+              onCollect={() => void recordPayment(item.id)}
             />
           ))}
           {queue.length === 0 ? (
@@ -121,12 +132,14 @@ function DepartureRow({
   onToggle,
   onCheckOut,
   onNotify,
+  onCollect,
 }: {
   reservation: Reservation;
   expanded: boolean;
   onToggle: () => void;
   onCheckOut: () => void;
   onNotify: (message: string) => void;
+  onCollect: () => void;
 }) {
   const [paidAmount, setPaidAmount] = useState(reservation.paidAmount);
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
@@ -188,6 +201,7 @@ function DepartureRow({
                   type="button"
                   onClick={() => {
                     setPaidAmount(reservation.amount);
+                    onCollect();
                     onNotify(`Final payment collected from ${reservation.guest}.`);
                   }}
                   className="rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover"

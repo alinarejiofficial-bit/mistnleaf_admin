@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { EnquiryForm } from "@/components/contact/EnquiryForm";
+import { CmsSectionEdit } from "@/components/cms/CmsSectionEdit";
 import { PageIntro, Section } from "@/components/PageShell";
-import { site } from "@/lib/site";
+import { getSiteContent } from "@/lib/cms/get-site-content";
 
 export const metadata: Metadata = {
   title: "Contact & Enquiries",
@@ -13,6 +15,9 @@ type Props = PageProps<"/contact">;
 
 export default async function ContactPage({ searchParams }: Props) {
   const params = await searchParams;
+  const content = await getSiteContent();
+  const siteInfo = content.site;
+  const contact = content.contact;
   const sent = params.sent === "1";
   const missing = params.error === "missing";
 
@@ -23,7 +28,10 @@ export default async function ContactPage({ searchParams }: Props) {
         title="Contact & Enquiries"
         lead="Reach the resort desk, ask about availability, or send an enquiry — we will respond with next steps."
       />
-      <Section className="pt-0">
+      <Section className="relative pt-0">
+        <Suspense fallback={null}>
+          <CmsSectionEdit section="contact" label="Contact" />
+        </Suspense>
         <div className="grid gap-12 lg:grid-cols-2">
           <div>
             <h2 className="font-display text-2xl text-pine">Resort contact</h2>
@@ -33,10 +41,10 @@ export default async function ContactPage({ searchParams }: Props) {
                   Email
                 </span>
                 <a
-                  href={`mailto:${site.email}`}
+                  href={`mailto:${contact.email || siteInfo.email}`}
                   className="text-pine hover:underline"
                 >
-                  {site.email}
+                  {contact.email || siteInfo.email}
                 </a>
               </p>
               <p>
@@ -44,28 +52,31 @@ export default async function ContactPage({ searchParams }: Props) {
                   Phone
                 </span>
                 <a
-                  href={`tel:${site.phone.replace(/\s/g, "")}`}
+                  href={`tel:${(contact.phone || siteInfo.phone).replace(/\s/g, "")}`}
                   className="text-pine hover:underline"
                 >
-                  {site.phone}
+                  {contact.phone || siteInfo.phone}
                 </a>
               </p>
               <p>
                 <span className="block text-xs uppercase tracking-[0.18em] text-lichen">
                   Hours
                 </span>
-                {site.hours}
+                {siteInfo.hours}
               </p>
               <p>
                 <span className="block text-xs uppercase tracking-[0.18em] text-lichen">
                   Address
                 </span>
-                {site.address.line1}
+                {contact.addressLine1 || siteInfo.address.line1}
                 <br />
-                {site.address.line2}
+                {contact.addressLine2 || siteInfo.address.line2}
                 <br />
-                {site.address.country}
+                {siteInfo.address.country}
               </p>
+              {contact.checkInNote ? (
+                <p className="text-sm">{contact.checkInNote}</p>
+              ) : null}
             </div>
             <div className="mt-8 flex flex-wrap gap-4 text-sm">
               <Link href="/location" className="link-arrow">

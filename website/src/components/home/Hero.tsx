@@ -1,20 +1,24 @@
 import Image from "next/image";
 import { ButtonLink } from "@/components/ButtonLink";
-import { media } from "@/lib/media";
-import { site } from "@/lib/site";
+import type { MappedSiteContent } from "@/lib/cms/map-to-site";
 
-export function Hero() {
+type HeroProps = {
+  hero: MappedSiteContent["hero"];
+};
+
+export function Hero({ hero }: HeroProps) {
   return (
     <section className="hero" aria-label="Mistnleaf retreat">
       <div className="hero-stage" aria-hidden>
         <div className="hero-bg-motion">
           <Image
-            src={media.hero}
+            src={hero.image}
             alt=""
             fill
             priority
             className="hero-bg object-cover"
             sizes="100vw"
+            unoptimized={hero.image.startsWith("http")}
           />
         </div>
         <div className="hero-light">
@@ -27,22 +31,19 @@ export function Hero() {
 
       <div className="hero-content">
         <div className="hero-copy">
-          <p className="hero-eyebrow">Staycation</p>
-          <h1 className="hero-title">{site.tagline}</h1>
-          <p className="hero-lead">
-            A forest retreat where slow mornings, soft light, and thoughtful
-            hospitality meet.
-          </p>
+          <p className="hero-eyebrow">{hero.eyebrow}</p>
+          <h1 className="hero-title">{hero.title}</h1>
+          <p className="hero-lead">{hero.description}</p>
           <div className="hero-actions">
             <ButtonLink href="/booking/search" className="hero-cta rounded-xl">
-              Book your stay
+              {hero.ctaPrimary}
             </ButtonLink>
             <ButtonLink
               href="/rooms"
               variant="secondary"
               className="hero-cta hero-cta--ghost rounded-xl"
             >
-              Explore rooms
+              {hero.ctaSecondary}
             </ButtonLink>
           </div>
         </div>

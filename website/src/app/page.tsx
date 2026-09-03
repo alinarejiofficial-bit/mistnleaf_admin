@@ -1,20 +1,14 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { FaqList } from "@/components/FaqList";
+import { CmsSectionEdit } from "@/components/cms/CmsSectionEdit";
 import { Hero } from "@/components/home/Hero";
 import { CtaBand, Section } from "@/components/PageShell";
 import { media } from "@/lib/media";
-import {
-  amenities,
-  experiences,
-  faqs,
-  formatInr,
-  galleryImages,
-  offers,
-  rooms,
-  site,
-  testimonials,
-} from "@/lib/site";
+import { getSiteContent } from "@/lib/cms/get-site-content";
+import { formatInr } from "@/lib/site";
 
 function SectionHeading({
   eyebrow,
@@ -55,38 +49,54 @@ function SectionHeading({
   );
 }
 
-export default function HomePage() {
+export const metadata: Metadata = {
+  title: "Staycation",
+};
+
+export default async function HomePage() {
+  const content = await getSiteContent();
+
   return (
     <>
-      <Hero />
+      <section className="relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="homepage"
+            label="Hero"
+            adminPath="/website/homepage?edit=hero"
+          />
+        </Suspense>
+        <Hero hero={content.hero} />
+      </section>
 
-      <section className="about-band">
+      <section className="about-band relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="about"
+            label="About"
+            adminPath="/website/homepage?edit=about"
+          />
+        </Suspense>
         <Section className="!py-0">
           <div className="about-grid">
             <div className="about-copy">
-              <p className="eyebrow">About Mistnleaf</p>
-              <h2 className="about-title">
-                Soft light, quiet rooms, forest air
-              </h2>
-              <p className="about-lead">
-                Mistnleaf sits above the valley where morning fog settles
-                between the trees. We keep the stay intentionally small —
-                thoughtful rooms, seasonal dining, and hospitality that feels
-                personal.
-              </p>
+              <p className="eyebrow">{content.about.eyebrow}</p>
+              <h2 className="about-title">{content.about.title}</h2>
+              <p className="about-lead">{content.about.content}</p>
               <Link href="/about" className="link-arrow about-link">
-                Read our story
+                {content.about.ctaLabel}
               </Link>
             </div>
             <div className="about-visual">
               <div className="about-media">
                 <Image
-                  src={media.aboutLodge}
+                  src={content.about.image}
                   alt="Glass hillside lodge overlooking misty mountain valleys at Mistnleaf"
                   fill
                   className="object-cover object-center sm:object-[28%_42%]"
                   sizes="(max-width: 1024px) 100vw, 48vw"
                   priority={false}
+                  unoptimized={content.about.image.startsWith("http")}
                 />
               </div>
             </div>
@@ -94,17 +104,24 @@ export default function HomePage() {
         </Section>
       </section>
 
-      <section className="band-soft">
+      <section className="band-soft relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="rooms"
+            label="Featured rooms"
+            adminPath="/website/homepage?edit=rooms"
+          />
+        </Suspense>
         <Section>
           <SectionHeading
-            eyebrow="Stay"
-            title="Featured Rooms"
-            lead="Suites and cottages shaped for rest, with forest light and soft linens."
+            eyebrow={content.homepageBands.rooms.eyebrow}
+            title={content.homepageBands.rooms.title}
+            lead={content.homepageBands.rooms.lead}
             href="/rooms"
-            linkLabel="View all rooms"
+            linkLabel={content.homepageBands.rooms.viewAllLabel}
           />
           <div className="grid gap-8 md:grid-cols-3 md:gap-7">
-            {rooms.map((room) => (
+            {content.rooms.map((room) => (
               <Link
                 key={room.slug}
                 href={`/rooms/${room.slug}`}
@@ -117,6 +134,7 @@ export default function HomePage() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 33vw"
+                    unoptimized={room.image.startsWith("http")}
                   />
                 </div>
                 <div className="mt-4 sm:mt-5">
@@ -136,17 +154,24 @@ export default function HomePage() {
         </Section>
       </section>
 
-      <section className="experiences-band">
+      <section className="experiences-band relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="experiences"
+            label="Experiences"
+            adminPath="/website/homepage?edit=experiences"
+          />
+        </Suspense>
         <Section>
           <SectionHeading
-            eyebrow="Do"
-            title="Experiences"
-            lead="Optional rituals for your stay — walks, tea, and quiet evenings."
+            eyebrow={content.homepageBands.experiences.eyebrow}
+            title={content.homepageBands.experiences.title}
+            lead={content.homepageBands.experiences.lead}
             href="/experiences"
-            linkLabel="All experiences"
+            linkLabel={content.homepageBands.experiences.viewAllLabel}
           />
           <div className="experiences-grid">
-            {experiences.slice(0, 4).map((item, index) => (
+            {content.homepageExperiences.map((item, index) => (
               <article key={item.title} className="experience-card group">
                 <div className="experience-media img-frame">
                   <Image
@@ -155,6 +180,7 @@ export default function HomePage() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 50vw"
+                    unoptimized={item.image.startsWith("http")}
                   />
                   <span className="experience-index" aria-hidden>
                     {String(index + 1).padStart(2, "0")}
@@ -171,17 +197,24 @@ export default function HomePage() {
         </Section>
       </section>
 
-      <section className="band-mist">
+      <section className="band-mist relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="amenities"
+            label="Amenities"
+            adminPath="/website/homepage?edit=amenities"
+          />
+        </Suspense>
         <Section>
           <SectionHeading
-            eyebrow="Comforts"
-            title="Amenities"
-            lead="Shared spaces for rest between walks, meals, and quiet hours."
+            eyebrow={content.homepageBands.amenities.eyebrow}
+            title={content.homepageBands.amenities.title}
+            lead={content.homepageBands.amenities.lead}
             href="/amenities"
-            linkLabel="Explore amenities"
+            linkLabel={content.homepageBands.amenities.viewAllLabel}
           />
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-7">
-            {amenities.map((item) => (
+            {content.homepageAmenities.map((item) => (
               <article key={item.title} className="group">
                 <div className="img-frame relative aspect-[4/3] rounded-xl sm:rounded-2xl">
                   <Image
@@ -190,6 +223,7 @@ export default function HomePage() {
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 33vw"
+                    unoptimized={item.image.startsWith("http")}
                   />
                 </div>
                 <h3 className="mt-4 font-display text-[1.45rem] text-pine sm:mt-5 sm:text-2xl">
@@ -204,26 +238,30 @@ export default function HomePage() {
         </Section>
       </section>
 
-      <section className="gallery-band">
+      <section className="gallery-band relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="gallery"
+            label="Gallery"
+            adminPath="/website/homepage?edit=gallery"
+          />
+        </Suspense>
         <div className="gallery-mist" aria-hidden>
           <span className="gallery-mist__cloud gallery-mist__cloud--a" />
           <span className="gallery-mist__cloud gallery-mist__cloud--b" />
         </div>
         <Section>
           <div className="gallery-intro">
-            <p className="eyebrow">Look</p>
-            <h2 className="gallery-intro__title">A quiet visual diary</h2>
-            <p className="gallery-intro__lead">
-              Soft light through glass, mist in the trees, and rooms shaped for
-              unhurried mornings.
-            </p>
+            <p className="eyebrow">{content.homepageBands.gallery.eyebrow}</p>
+            <h2 className="gallery-intro__title">{content.homepageBands.gallery.title}</h2>
+            <p className="gallery-intro__lead">{content.homepageBands.gallery.lead}</p>
             <Link href="/gallery" className="link-arrow gallery-intro__link">
-              Full gallery
+              {content.homepageBands.gallery.viewAllLabel}
             </Link>
           </div>
 
           <div className="gallery-mosaic">
-            {galleryImages.slice(0, 7).map((image, index) => {
+            {content.homepageGalleryImages.map((image, index) => {
               const roles = [
                 "gallery-tile--hero",
                 "gallery-tile--side",
@@ -250,6 +288,7 @@ export default function HomePage() {
                           ? "100vw"
                           : "(max-width: 639px) 100vw, (max-width: 768px) 50vw, 33vw"
                     }
+                    unoptimized={image.src.startsWith("http")}
                   />
                   <span className="gallery-tile__index" aria-hidden>
                     {String(index + 1).padStart(2, "0")}
@@ -266,18 +305,25 @@ export default function HomePage() {
         </Section>
       </section>
 
-      <section className="packages-band">
+      <section className="packages-band relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="offers"
+            label="Offers"
+            adminPath="/website/homepage?edit=offers"
+          />
+        </Suspense>
         <Section>
           <SectionHeading
-            eyebrow="Packages"
-            title="Offers & Packages"
-            lead="Thoughtful combinations of stay, meals, and experiences."
+            eyebrow={content.homepageBands.offers.eyebrow}
+            title={content.homepageBands.offers.title}
+            lead={content.homepageBands.offers.lead}
             href="/offers"
-            linkLabel="View offers"
+            linkLabel={content.homepageBands.offers.viewAllLabel}
           />
           <div className="border-y border-line">
-            {offers.map((offer, index) => (
-              <article key={offer.title} className="offer-panel">
+            {content.homepageOffers.map((offer, index) => (
+              <article key={`${offer.title}-${index}`} className="offer-panel">
                 <p className="offer-index" aria-hidden>
                   {String(index + 1).padStart(2, "0")}
                 </p>
@@ -285,22 +331,27 @@ export default function HomePage() {
                   <h3 className="font-display text-2xl text-pine md:text-[2rem]">
                     {offer.title}
                   </h3>
-                  <p className="mt-3 leading-relaxed text-muted">
-                    {offer.detail}
-                  </p>
+                  <p className="mt-3 leading-relaxed text-muted">{offer.detail}</p>
                   <p className="mt-3 text-[0.72rem] uppercase tracking-[0.16em] text-lichen">
                     {offer.valid}
                   </p>
                 </div>
                 <div className="md:min-w-[9.5rem] md:text-right">
                   <p className="text-[0.68rem] uppercase tracking-[0.16em] text-muted">
-                    From
+                    {offer.priceLabel || "From"}
                   </p>
                   <p className="mt-1 font-display text-3xl text-pine">
                     {formatInr(offer.priceFrom)}
                   </p>
-                  <Link href="/booking/search" className="link-arrow mt-4">
-                    Book package
+                  <Link
+                    href={
+                      offer.bookCtaHref?.startsWith("http") || offer.bookCtaHref?.startsWith("/")
+                        ? offer.bookCtaHref
+                        : "/booking/search"
+                    }
+                    className="link-arrow mt-4"
+                  >
+                    {offer.bookCtaLabel || "Book package"}
                   </Link>
                 </div>
               </article>
@@ -309,7 +360,14 @@ export default function HomePage() {
         </Section>
       </section>
 
-      <section className="location-band">
+      <section className="location-band relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="location"
+            label="Location"
+            adminPath="/website/homepage?edit=location"
+          />
+        </Suspense>
         <div className="location-band__media" aria-hidden>
           <Image
             src={media.locationHills}
@@ -322,43 +380,53 @@ export default function HomePage() {
         <div className="location-band__content mx-auto flex min-h-[24rem] max-w-6xl flex-col items-center justify-end px-5 py-12 text-center sm:px-6 sm:py-16 md:min-h-[34rem] md:py-24">
           <div className="max-w-xl text-fog">
             <p className="text-[0.7rem] uppercase tracking-[0.22em] text-fog/60">
-              Location
+              {content.homepageBands.location.eyebrow}
             </p>
             <h2 className="mt-3 font-display text-balance text-[1.85rem] sm:mt-4 sm:text-3xl md:text-[2.75rem]">
-              Above the valley in Munnar
+              {content.homepageLocation.title}
             </h2>
             <p className="mt-3 leading-relaxed text-fog/80 sm:mt-4">
-              Nestled near Whispering Pines — close enough to town, far enough
-              for quiet. Private transfers can be arranged when you book.
+              {content.homepageLocation.description}
             </p>
             <div className="mt-6 grid w-full gap-4 text-sm text-fog/85 sm:mt-7 sm:grid-cols-2 sm:gap-x-8">
               <p className="text-center sm:text-left">
                 <span className="block text-[0.65rem] uppercase tracking-[0.16em] text-fog/50">
                   Address
                 </span>
-                {site.address.line1}
+                {content.homepageLocation.addressLine1}
                 <br />
-                {site.address.line2}
+                {content.homepageLocation.addressLine2}
               </p>
               <p className="text-center sm:text-left">
                 <span className="block text-[0.65rem] uppercase tracking-[0.16em] text-fog/50">
                   Airport
                 </span>
-                ~3.5–4 hrs from COK
+                {content.homepageLocation.airportNote}
               </p>
             </div>
             <Link
-              href="/location"
+              href={
+                content.homepageLocation.directionsUrl.startsWith("http")
+                  ? content.homepageLocation.directionsUrl
+                  : "/location"
+              }
               className="mt-7 inline-flex items-center gap-2 text-sm tracking-wide text-fog transition hover:gap-3 sm:mt-8"
             >
-              Get directions
+              {content.homepageLocation.directionsLabel}
               <span aria-hidden>→</span>
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="guests-band">
+      <section className="guests-band relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="testimonials"
+            label="Testimonials"
+            adminPath="/website/homepage?edit=testimonials"
+          />
+        </Suspense>
         <div className="guests-mist" aria-hidden>
           <span className="guests-mist__cloud guests-mist__cloud--a" />
           <span className="guests-mist__cloud guests-mist__cloud--b" />
@@ -366,12 +434,12 @@ export default function HomePage() {
         </div>
         <Section>
           <SectionHeading
-            eyebrow="Guests"
-            title="Guest Testimonials"
-            lead="Words from travellers who stayed among the mist and leaves."
+            eyebrow={content.homepageBands.testimonials.eyebrow}
+            title={content.homepageBands.testimonials.title}
+            lead={content.homepageBands.testimonials.lead}
           />
           <div className="guests-grid">
-            {testimonials.map((item, index) => (
+            {content.homepageTestimonials.map((item, index) => (
               <blockquote
                 key={item.name}
                 className={`testimonial-panel testimonial-panel--${index + 1}`}
@@ -404,16 +472,23 @@ export default function HomePage() {
         </Section>
       </section>
 
-      <section className="faq-band">
+      <section className="faq-band relative">
+        <Suspense fallback={null}>
+          <CmsSectionEdit
+            section="faqs"
+            label="FAQs"
+            adminPath="/website/homepage?edit=faqs"
+          />
+        </Suspense>
         <Section>
           <SectionHeading
-            eyebrow="Help"
-            title="Frequently asked questions"
-            lead="Quick answers before you arrive — check-in, transfers, dining, and more."
+            eyebrow={content.homepageBands.faqs.eyebrow}
+            title={content.homepageBands.faqs.title}
+            lead={content.homepageBands.faqs.lead}
             href="/faqs"
-            linkLabel="View all FAQs"
+            linkLabel={content.homepageBands.faqs.viewAllLabel}
           />
-          <FaqList items={faqs.slice(0, 4)} className="faq-list--home" />
+          <FaqList items={content.homepageFaqs} className="faq-list--home" />
         </Section>
       </section>
 

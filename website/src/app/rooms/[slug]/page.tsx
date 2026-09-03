@@ -4,19 +4,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ButtonLink } from "@/components/ButtonLink";
 import { PageIntro, Section } from "@/components/PageShell";
-import { formatInr, getRoom, rooms, stayInfo } from "@/lib/site";
+import { getRoomBySlug, getSiteContent } from "@/lib/cms/get-site-content";
+import { formatInr, stayInfo } from "@/lib/site";
 
 type Props = PageProps<"/rooms/[slug]">;
 
-export function generateStaticParams() {
-  return rooms.map((room) => ({ slug: room.slug }));
+export async function generateStaticParams() {
+  const content = await getSiteContent();
+  return content.allRooms.map((room) => ({ slug: room.slug }));
 }
 
-export async function generateMetadata({
-  params,
-}: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const room = getRoom(slug);
+  const room = await getRoomBySlug(slug);
   if (!room) return { title: "Room" };
   return {
     title: room.name,
@@ -26,7 +26,7 @@ export async function generateMetadata({
 
 export default async function RoomDetailPage({ params }: Props) {
   const { slug } = await params;
-  const room = getRoom(slug);
+  const room = await getRoomBySlug(slug);
   if (!room) notFound();
 
   const gallery = room.gallery.length > 0 ? room.gallery : [room.image];
@@ -47,6 +47,7 @@ export default async function RoomDetailPage({ params }: Props) {
                 priority
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 65vw"
+                unoptimized={gallery[0].startsWith("http")}
               />
             </figure>
             {gallery.slice(1).map((src, index) => (
@@ -57,6 +58,7 @@ export default async function RoomDetailPage({ params }: Props) {
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 30vw"
+                  unoptimized={src.startsWith("http")}
                 />
               </figure>
             ))}

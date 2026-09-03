@@ -13,9 +13,12 @@ import {
   ImageUploadField,
   PreviewButton,
   PublishBadge,
+  PublishListButton,
+  PublishStatusField,
   RichTextEditor,
   SearchField,
   stripHtml,
+  ToastPortal,
   useToast,
 } from "@/components/cms/CmsShared";
 import { formatDisplayDate } from "@/lib/data";
@@ -41,7 +44,7 @@ export function GallerySection({ onPreview }: { onPreview: PreviewHandler }) {
     deleteGalleryImage,
     reorderGalleryImages,
   } = useCms();
-  const { toast, showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [categoryFilter, setCategoryFilter] = useState<string>("All");
   const [query, setQuery] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
@@ -121,6 +124,15 @@ export function GallerySection({ onPreview }: { onPreview: PreviewHandler }) {
           >
             {cat.name}
             <PublishBadge status={cat.status} />
+            <PublishListButton
+              status={cat.status}
+              onToggle={() =>
+                saveGalleryCategory({
+                  ...cat,
+                  status: togglePublishStatus(cat.status),
+                })
+              }
+            />
             <button
               type="button"
               onClick={() => {
@@ -249,6 +261,10 @@ export function GallerySection({ onPreview }: { onPreview: PreviewHandler }) {
               className="field-input h-11"
             />
           </label>
+          <PublishStatusField
+            status={catForm.status}
+            onChange={(status) => setCatForm((prev) => ({ ...prev, status }))}
+          />
           <FormActions onCancel={() => setCatModal(null)} />
         </form>
       </CmsModal>
@@ -308,6 +324,10 @@ export function GallerySection({ onPreview }: { onPreview: PreviewHandler }) {
             value={imgForm.imageUrl}
             onChange={(imageUrl) => setImgForm((prev) => ({ ...prev, imageUrl }))}
           />
+          <PublishStatusField
+            status={imgForm.status}
+            onChange={(status) => setImgForm((prev) => ({ ...prev, status }))}
+          />
           <FormActions onCancel={() => setImgModal(null)} />
         </form>
       </CmsModal>
@@ -325,12 +345,7 @@ export function GallerySection({ onPreview }: { onPreview: PreviewHandler }) {
           showSuccess("Deleted.");
         }}
       />
-
-      {toast ? (
-        <div className="fixed right-4 bottom-4 z-[70] rounded-xl bg-brand px-4 py-3 text-sm text-white shadow-lg">
-          {toast.message}
-        </div>
-      ) : null}
+      <ToastPortal toast={toast} onClose={clearToast} />
     </div>
   );
 }
@@ -348,7 +363,7 @@ function emptyImage(categoryId = ""): Omit<CmsGalleryImage, "id"> {
 
 export function OffersCmsSection({ onPreview }: { onPreview: PreviewHandler }) {
   const { content, saveOffer, deleteOffer, saveOffersSection } = useCms();
-  const { toast, showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [sectionDraft, setSectionDraft] = useState<CmsOffersSection | null>(null);
   const [offerModal, setOfferModal] = useState<CmsWebsiteOffer | "new" | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -371,8 +386,8 @@ export function OffersCmsSection({ onPreview }: { onPreview: PreviewHandler }) {
         <div>
           <h2 className="font-display text-2xl text-foreground">Offers & Packages</h2>
           <p className="mt-1 text-sm text-muted">
-            Edit the section header, package list, prices, terms, and book links shown on the
-            public website.
+            Edit the Offers page header and full package catalog. Homepage package picks are
+            managed separately under Homepage → Offers.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -442,6 +457,12 @@ export function OffersCmsSection({ onPreview }: { onPreview: PreviewHandler }) {
             value={section.viewAllHref}
             onChange={(viewAllHref) => setSectionDraft((prev) => prev && { ...prev, viewAllHref })}
           />
+          <div className="sm:col-span-2">
+            <PublishStatusField
+              status={section.status}
+              onChange={(status) => setSectionDraft((prev) => prev && { ...prev, status })}
+            />
+          </div>
         </div>
       ) : null}
 
@@ -524,6 +545,18 @@ export function OffersCmsSection({ onPreview }: { onPreview: PreviewHandler }) {
                       </button>
                       <button
                         type="button"
+                        onClick={() =>
+                          saveOffer({
+                            ...offer,
+                            status: togglePublishStatus(offer.status),
+                          })
+                        }
+                        className="rounded-lg border border-border px-2 py-1 text-xs font-medium hover:bg-surface-muted"
+                      >
+                        {offer.status === "Published" ? "Unpublish" : "Publish"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => saveOffer({ ...offer, active: !offer.active })}
                         className="rounded-lg border border-border px-2 py-1 text-xs font-medium hover:bg-surface-muted"
                       >
@@ -564,12 +597,7 @@ export function OffersCmsSection({ onPreview }: { onPreview: PreviewHandler }) {
           showSuccess("Offer deleted.");
         }}
       />
-
-      {toast ? (
-        <div className="fixed right-4 bottom-4 z-[70] rounded-xl bg-brand px-4 py-3 text-sm text-white shadow-lg">
-          {toast.message}
-        </div>
-      ) : null}
+      <ToastPortal toast={toast} onClose={clearToast} />
     </div>
   );
 }
@@ -599,7 +627,7 @@ function OfferSectionField({
 
 export function TestimonialsSection({ onPreview }: { onPreview: PreviewHandler }) {
   const { content, saveTestimonial, deleteTestimonial } = useCms();
-  const { toast, showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [modal, setModal] = useState<CmsTestimonial | "new" | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<CmsTestimonial>(emptyTestimonial());
@@ -735,6 +763,10 @@ export function TestimonialsSection({ onPreview }: { onPreview: PreviewHandler }
               ))}
             </select>
           </label>
+          <PublishStatusField
+            status={form.status}
+            onChange={(status) => setForm((prev) => ({ ...prev, status }))}
+          />
           <FormActions onCancel={() => setModal(null)} />
         </form>
       </CmsModal>
@@ -750,12 +782,7 @@ export function TestimonialsSection({ onPreview }: { onPreview: PreviewHandler }
           showSuccess("Testimonial removed.");
         }}
       />
-
-      {toast ? (
-        <div className="fixed right-4 bottom-4 z-[70] rounded-xl bg-brand px-4 py-3 text-sm text-white shadow-lg">
-          {toast.message}
-        </div>
-      ) : null}
+      <ToastPortal toast={toast} onClose={clearToast} />
     </div>
   );
 }
@@ -781,7 +808,7 @@ export function FaqsContactSection({
   focus?: "all" | "faqs" | "contact";
 }) {
   const { content, saveFaq, deleteFaq, saveContact, reorderFaqs } = useCms();
-  const { toast, showSuccess } = useToast();
+  const { toast, showSuccess, clearToast } = useToast();
   const [faqModal, setFaqModal] = useState<CmsFaq | "new" | null>(null);
   const [deleteFaqId, setDeleteFaqId] = useState<string | null>(null);
   const [faqForm, setFaqForm] = useState<CmsFaq>(emptyFaq());
@@ -837,6 +864,12 @@ export function FaqsContactSection({
                 >
                   Edit
                 </button>
+                <PublishListButton
+                  status={faq.status}
+                  onToggle={() =>
+                    saveFaq({ ...faq, status: togglePublishStatus(faq.status) })
+                  }
+                />
                 <button
                   type="button"
                   disabled={index === 0}
@@ -903,6 +936,12 @@ export function FaqsContactSection({
                 />
               </label>
             ))}
+            <div className="sm:col-span-2">
+              <PublishStatusField
+                status={contactDraft.status}
+                onChange={(status) => setContactDraft((prev) => ({ ...prev, status }))}
+              />
+            </div>
             <div className="flex gap-2 sm:col-span-2">
               <button
                 type="button"
@@ -929,8 +968,17 @@ export function FaqsContactSection({
             <InfoRow label="WhatsApp" value={content.contact.whatsapp} />
             <InfoRow label="Address" value={content.contact.address} />
             <InfoRow label="Reception note" value={content.contact.checkInNote} />
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
               <PublishBadge status={content.contact.status} />
+              <PublishListButton
+                status={content.contact.status}
+                onToggle={() =>
+                  saveContact({
+                    ...content.contact,
+                    status: togglePublishStatus(content.contact.status),
+                  })
+                }
+              />
             </div>
             <button
               type="button"
@@ -980,6 +1028,10 @@ export function FaqsContactSection({
               className="field-input"
             />
           </label>
+          <PublishStatusField
+            status={faqForm.status}
+            onChange={(status) => setFaqForm((prev) => ({ ...prev, status }))}
+          />
           <FormActions onCancel={() => setFaqModal(null)} />
         </form>
       </CmsModal>
@@ -998,12 +1050,7 @@ export function FaqsContactSection({
 
       </>
       ) : null}
-
-      {toast ? (
-        <div className="fixed right-4 bottom-4 z-[70] rounded-xl bg-brand px-4 py-3 text-sm text-white shadow-lg">
-          {toast.message}
-        </div>
-      ) : null}
+      <ToastPortal toast={toast} onClose={clearToast} />
     </div>
   );
 }

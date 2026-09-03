@@ -15,10 +15,12 @@ export function usePermissions() {
 
   return useMemo(() => {
     const can = (action: AppAction) =>
-      roleId ? canPerformActionOrSuper(roleId, action) : false;
+      roleId
+        ? canPerformActionOrSuper(roleId, action, currentUser?.permissions)
+        : false;
 
     const canStrict = (action: AppAction) =>
-      roleId ? canPerformAction(roleId, action) : false;
+      roleId ? canPerformAction(roleId, action, currentUser?.permissions) : false;
 
     return {
       roleId,

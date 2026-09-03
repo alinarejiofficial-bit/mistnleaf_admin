@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { Download, Plus } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
-import { formatINR, payments as seedPayments, type Payment } from "@/lib/ops-data";
+import { formatINR, type Payment } from "@/lib/ops-data";
+import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
@@ -17,7 +18,8 @@ const statusStyles = {
 };
 
 export function PaymentsManager() {
-  const [items, setItems] = useState<Payment[]>(seedPayments);
+  const { payments, recordPayment, bookings } = useOps();
+  const items = payments;
   const [filter, setFilter] = useState<"All" | "Online" | "Offline" | "Pending">("All");
   const [recordOpen, setRecordOpen] = useState(false);
   const [form, setForm] = useState({ guest: "", amount: "", method: "UPI" as Payment["method"] });
@@ -167,22 +169,15 @@ export function PaymentsManager() {
               event.preventDefault();
               const amount = Number(form.amount);
               if (!form.guest.trim() || !amount) return;
-              setItems((prev) => [
-                {
-                  id: `PAY-${900 + prev.length}`,
-                  guest: form.guest.trim(),
-                  reservationId: "RSV-NEW",
-                  method: form.method,
-                  channel: form.method === "Cash" || form.method === "Bank transfer" ? "Offline" : "Online",
-                  amount,
-                  status: "Success",
-                  date: new Date().toISOString().slice(0, 10),
-                },
-                ...prev,
-              ]);
+              const match = bookings.find(
+                (booking) => booking.guest.toLowerCase() === form.guest.trim().toLowerCase(),
+              );
+              if (match) {
+                void recordPayment(match.id, match.paidAmount + amount);
+              }
               setRecordOpen(false);
               setForm({ guest: "", amount: "", method: "UPI" });
-              showToast("Payment recorded.");
+              showToast(match ? "Payment recorded on the booking." : "No matching booking found for that guest.");
             }}
           >
             <h3 className="font-display text-xl text-foreground">Record payment</h3>

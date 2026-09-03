@@ -11,12 +11,12 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError("");
 
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result.ok) {
       setError(result.error);
       setSubmitting(false);
@@ -37,7 +37,7 @@ export function LoginForm() {
             Admin sign in
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Sign in with the email and password set by Super Administrator.
+            Sign in against the Django API on port 3001. Demo: admin@mistnleaf.com
           </p>
         </div>
 

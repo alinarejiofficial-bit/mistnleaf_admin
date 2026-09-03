@@ -1,26 +1,40 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { ButtonLink } from "@/components/ButtonLink";
+import { CmsSectionEdit } from "@/components/cms/CmsSectionEdit";
 import { PageIntro, Section } from "@/components/PageShell";
+import { getSiteContent } from "@/lib/cms/get-site-content";
 import { media } from "@/lib/media";
-import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Location",
   description: "Find Mistnleaf in the hills of Munnar, Kerala.",
 };
 
-export default function LocationPage() {
+export default async function LocationPage() {
+  const content = await getSiteContent();
+  const { site: siteInfo, location } = content;
+  const directionsHref =
+    location.directionsUrl.startsWith("http")
+      ? location.directionsUrl
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          `${location.addressLine1}, ${location.addressLine2}, ${siteInfo.address.country}`,
+        )}`;
+
   return (
     <>
       <PageIntro
         eyebrow="Find us"
-        title="Location"
-        lead="Nestled above the valley near Whispering Pines — close enough to town, far enough for quiet."
+        title={location.title}
+        lead={location.description}
       />
 
       <section className="relative overflow-hidden">
+        <Suspense fallback={null}>
+          <CmsSectionEdit section="location" label="Location" />
+        </Suspense>
         <div className="location-panel absolute inset-0">
           <Image
             src={media.locationHills}
@@ -33,13 +47,13 @@ export default function LocationPage() {
         </div>
         <div className="relative z-[2] mx-auto flex min-h-[26rem] max-w-6xl flex-col justify-end px-6 py-16 md:min-h-[32rem] md:py-20">
           <div className="max-w-xl text-fog">
-            <p className="font-display text-3xl md:text-4xl">{site.name}</p>
+            <p className="font-display text-3xl md:text-4xl">{siteInfo.name}</p>
             <p className="mt-4 leading-relaxed text-fog/80">
-              {site.address.line1}
+              {location.addressLine1}
               <br />
-              {site.address.line2}
+              {location.addressLine2}
               <br />
-              {site.address.country}
+              {siteInfo.address.country}
             </p>
           </div>
         </div>
@@ -55,8 +69,8 @@ export default function LocationPage() {
               Cochin International
             </p>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              About 3.5–4 hours by road. Private transfers can be arranged when
-              you book.
+              {location.airportNote}. Private transfers can be arranged when you
+              book.
             </p>
           </div>
           <div className="border-t-2 border-lichen/50 pt-5">
@@ -75,16 +89,14 @@ export default function LocationPage() {
             </p>
             <p className="mt-3 font-display text-xl text-pine">Ask the desk</p>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              Email {site.email} or call {site.phone} for directions and
+              Email {siteInfo.email} or call {siteInfo.phone} for directions and
               transfer quotes.
             </p>
           </div>
         </div>
         <div className="mt-12 flex flex-wrap gap-3">
           <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-              `${site.address.line1}, ${site.address.line2}, ${site.address.country}`,
-            )}`}
+            href={directionsHref}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center justify-center bg-pine px-6 py-3 text-[0.8rem] font-medium uppercase tracking-[0.08em] text-fog transition hover:bg-pine-soft"

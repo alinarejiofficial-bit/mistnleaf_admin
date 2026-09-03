@@ -1,15 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, UserPlus } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { HousekeepingAssignModal } from "@/components/ops/HousekeepingAssignModal";
 import { HousekeepingStaffModal } from "@/components/ops/HousekeepingStaffModal";
+import { useOps } from "@/components/ops/OpsProvider";
 import {
   housekeepingStaff as seedStaff,
   type HousekeepingStaffMember,
 } from "@/lib/housekeeping-data";
-import { housekeepingTasks as seedTasks, type HousekeepingTask } from "@/lib/ops-data";
+import { type HousekeepingTask } from "@/lib/ops-data";
+import { housekeepingPatchFromStatus } from "@/lib/ops-live";
+import {
+  createStaffDirectoryUser,
+  fetchStaffUsers,
+} from "@/lib/staff-api-client";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
@@ -32,7 +38,8 @@ const staffStatusStyles = {
 };
 
 export function HousekeepingManager() {
-  const [tasks, setTasks] = useState<HousekeepingTask[]>(seedTasks);
+  const { hkTasks, hkRooms, updateHousekeeping } = useOps();
+  const tasks = hkTasks;
   const [staff, setStaff] = useState<HousekeepingStaffMember[]>(seedStaff);
   const [filter, setFilter] = useState<"All" | "Queued" | "In progress" | "Done">(
     "All",
@@ -41,6 +48,22 @@ export function HousekeepingManager() {
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const { showToast, toast } = useFloatingToast();
 
+  useEffect(() => {
+    void fetchStaffUsers("housekeeping")
+      .then((rows) => {
+        if (!rows.length) return;
+        setStaff(
+          rows.map((user) => ({
+            id: user.id,
+            name: user.name || user.email,
+            email: user.email,
+            status: user.is_active ? "On duty" : "Off duty",
+          })),
+        );
+      })
+      .catch(() => undefined);
+  }, []);
+
   const filtered = useMemo(
     () =>
       tasks.filter((task) => (filter === "All" ? true : task.status === filter)),
@@ -48,31 +71,30 @@ export function HousekeepingManager() {
   );
 
   function assignStaff(taskId: string, staffName: string) {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              assignee: staffName,
-              status: task.status === "Queued" ? "In progress" : task.status,
-            }
-          : task,
-      ),
-    );
+    const room = hkRooms.find((item) => `HK-${item.id.slice(0, 6)}` === taskId) ?? hkRooms.find((item) => item.roomNumber === tasks.find((t) => t.id === taskId)?.room);
+    if (room) {
+      void updateHousekeeping(room.id, { assignee: staffName, ...housekeepingPatchFromStatus("Cleaning in Progress") });
+    }
     showToast(`${staffName} assigned to task.`);
   }
 
   function markDone(taskId: string) {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, status: "Done" as const } : task,
-      ),
-    );
+    const room = hkRooms.find((item) => item.roomNumber === tasks.find((t) => t.id === taskId)?.room);
+    if (room) {
+      void updateHousekeeping(room.id, housekeepingPatchFromStatus("Ready"));
+    }
     showToast("Task marked as done.");
   }
 
   function addStaffMember(member: HousekeepingStaffMember) {
     setStaff((prev) => [...prev, member]);
+    void createStaffDirectoryUser({
+      name: member.name,
+      email: member.email,
+      password: "Staff@123",
+      role_id: "housekeeping",
+      department: "Housekeeping",
+    }).catch(() => undefined);
     showToast(`${member.name} added to housekeeping team.`);
   }
 

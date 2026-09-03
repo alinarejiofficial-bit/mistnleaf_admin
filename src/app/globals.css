@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f5f2;
-  --foreground: #1a2420;
+  --background: #ffffff;
+  --foreground: #111827;
   --surface: #ffffff;
-  --surface-muted: #eef1ec;
-  --border: #d5ddd6;
-  --border-subtle: #e4eae5;
-  --muted: #5c6b63;
+  --surface-muted: #f4f5f7;
+  --border: #e5e7eb;
+  --border-subtle: #eef0f3;
+  --muted: #6b7280;
   --brand: #1b4d3e;
   --brand-hover: #163d32;
-  --brand-soft: #e3efe9;
+  --brand-soft: #e8f2ee;
   --brand-mid: #2f6b56;
   --accent: #b8956a;
-  --accent-soft: #f5efe6;
+  --accent-soft: #f7f1e8;
   --success: #2f7d57;
   --warning: #b8860b;
   --danger: #b54a3c;
   --info: #3a6d8c;
-  --sidebar: #132820;
-  --sidebar-text: #c5d4cb;
-  --sidebar-active: #1f3d32;
-  --shadow-sm: 0 1px 2px rgb(26 36 32 / 0.04);
-  --shadow-md: 0 8px 24px rgb(26 36 32 / 0.06);
+  --sidebar: #ffffff;
+  --sidebar-text: #374151;
+  --sidebar-active: #eef6f2;
+  --shadow-sm: 0 1px 2px rgb(17 24 39 / 0.04);
+  --shadow-md: 0 8px 24px rgb(17 24 39 / 0.06);
   --radius: 12px;
 }
 
@@ -64,10 +64,7 @@ html {
 
 body {
   min-height: 100%;
-  background:
-    radial-gradient(1200px 600px at 100% -10%, rgb(227 239 233 / 0.9), transparent 55%),
-    radial-gradient(900px 500px at -5% 20%, rgb(245 239 230 / 0.7), transparent 50%),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-figtree), system-ui, sans-serif;
 }
@@ -118,7 +115,7 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgb(197 212 203 / 0.35);
+  background: rgb(156 163 175 / 0.45);
   border-radius: 999px;
 }
 

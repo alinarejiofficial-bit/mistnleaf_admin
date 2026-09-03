@@ -2,7 +2,6 @@
 
 import { Sparkles, Loader, ClipboardCheck, BedDouble } from "lucide-react";
 import { useHousekeeping } from "@/components/housekeeping/HousekeepingProvider";
-import { housekeepingSummary } from "@/lib/housekeeping-data";
 
 const cards = [
   { key: "toClean" as const, label: "Rooms to Clean", icon: Sparkles, tone: "bg-accent-soft/80 border-accent/25 text-[#8a6a2f]" },
@@ -16,8 +15,8 @@ export function HousekeepingSummaryCards({
 }: {
   scope?: "property" | "assigned";
 }) {
-  const { summary } = useHousekeeping();
-  const counts = scope === "assigned" ? summary : housekeepingSummary;
+  const { summary, propertySummary } = useHousekeeping();
+  const counts = scope === "assigned" ? summary : propertySummary;
 
   return (
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

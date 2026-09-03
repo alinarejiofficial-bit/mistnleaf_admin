@@ -267,7 +267,9 @@ export function PublicWebsite() {
         </div>
       </PublicSiteSection>
 
-      <PublicSiteFooter footer={content.footer} contact={content.contact} />
+      <PublicSiteSection sectionId="footer">
+        <PublicSiteFooter footer={content.footer} contact={content.contact} />
+      </PublicSiteSection>
     </div>
   );
 }
