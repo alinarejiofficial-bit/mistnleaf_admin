@@ -9,7 +9,7 @@ import { getPublicWebsiteUrl } from "@/lib/public-site-nav";
 export function PublicSiteEditorToolbar() {
   const { currentUser, logout } = useAuth();
   const isPublicSite = process.env.NEXT_PUBLIC_PUBLIC_SITE === "true";
-  const adminDashboardHref = isPublicSite ? "http://localhost:3000/website/homepage" : "/website/homepage";
+  const adminDashboardHref = isPublicSite ? "http://localhost:3002/website/homepage" : "/website/homepage";
 
   if (!currentUser || !canEditCmsContent(currentUser.roleId, currentUser.permissions)) return null;
 

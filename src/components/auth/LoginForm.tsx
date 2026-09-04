@@ -37,7 +37,7 @@ export function LoginForm() {
             Admin sign in
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Sign in against the Django API on port 3001. Demo: admin@mistnleaf.com
+            Use a demo account below, or sign in with your staff email.
           </p>
         </div>
 

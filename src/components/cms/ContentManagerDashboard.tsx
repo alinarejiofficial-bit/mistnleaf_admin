@@ -108,7 +108,7 @@ function ContentManagerDashboardShell() {
       {config ? (
         <DashboardQuickActions
           title="Content workspace"
-          description="Edit homepage, rooms, gallery, offers, testimonials, and FAQs on the live site at localhost:3001."
+          description="Edit homepage, rooms, gallery, offers, testimonials, and FAQs on the live site at localhost:3000."
           actions={config.quickActions}
           accentClass={config.accentClass}
         />

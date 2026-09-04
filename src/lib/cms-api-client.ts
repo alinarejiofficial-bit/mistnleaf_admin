@@ -12,15 +12,12 @@ export function getCmsBackendUrl(): string {
   const configured =
     process.env.NEXT_PUBLIC_CMS_API_URL?.replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (configured) return configured;
-
-  if (typeof window !== "undefined") {
-    const { hostname, protocol } = window.location;
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return `${protocol}//${hostname}:3001`;
-    }
+  if (configured) {
+    // Prefer 127.0.0.1 so CMS never hits a leftover Next site on localhost:3001.
+    return configured
+      .replace("://localhost:", "://127.0.0.1:")
+      .replace("://[::1]:", "://127.0.0.1:");
   }
-
   return "http://127.0.0.1:3001";
 }
 

@@ -39,6 +39,14 @@ import type { Room } from "@/lib/rooms";
 import { CMS_UPDATED_EVENT } from "@/lib/cms-storage";
 import { roomTypesFromRooms } from "@/lib/ops-rooms-local";
 import {
+  applyGuestOverrides,
+  guestOverrideFromGuest,
+  loadLocalGuestOverrides,
+  saveLocalGuestOverrides,
+  upsertGuestOverride,
+  type GuestOverride,
+} from "@/lib/ops-guests-local";
+import {
   createStaffBooking,
   createStaffMaintenance,
   createStaffRoom,
@@ -93,6 +101,8 @@ type OpsContextValue = {
     email: string;
     phone: string;
     roomType: string;
+    roomId?: string;
+    roomName?: string;
     checkIn: string;
     checkOut: string;
     adults?: number;
@@ -102,6 +112,7 @@ type OpsContextValue = {
   saveRoom: (room: Room) => Promise<void>;
   saveRoomStatus: (room: Room) => Promise<void>;
   addRoom: (room: Room) => Promise<void>;
+  saveGuest: (guest: Guest, previous: Guest) => Promise<void>;
   recordPayment: (bookingId: string, amount?: number) => Promise<void>;
   advanceMaintenance: (id: string) => Promise<void>;
   reportMaintenance: (input: {
@@ -129,7 +140,12 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   const [roomTypes, setRoomTypes] = useState<StaffRoomType[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceTicket[]>([]);
   const [enquiryCount, setEnquiryCount] = useState(0);
+  const [guestOverrides, setGuestOverrides] = useState<GuestOverride[]>([]);
   const today = todayISO();
+
+  useEffect(() => {
+    setGuestOverrides(loadLocalGuestOverrides());
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!currentUser) {
@@ -225,18 +241,32 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       email: string;
       phone: string;
       roomType: string;
+      roomId?: string;
+      roomName?: string;
       checkIn: string;
       checkOut: string;
       adults?: number;
       children?: number;
       source?: string;
     }) => {
+      const unit =
+        (input.roomId
+          ? staffRooms.find((item) => item.id === input.roomId)
+          : undefined) ??
+        staffRooms.find(
+          (item) =>
+            item.display_name === input.roomName ||
+            item.name === input.roomName ||
+            item.code === input.roomName ||
+            item.number === input.roomName,
+        );
       await createStaffBooking({
         guest: input.guest,
         email: input.email,
         phone: input.phone,
-        room: input.roomType,
+        room: input.roomName || unit?.display_name || unit?.name || input.roomType,
         roomType: input.roomType,
+        room_unit: input.roomId || unit?.id,
         checkIn: input.checkIn,
         checkOut: input.checkOut,
         adults: input.adults,
@@ -245,7 +275,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       });
       await refresh();
     },
-    [refresh],
+    [refresh, staffRooms],
   );
 
   const ensureRoomType = useCallback(
@@ -303,6 +333,57 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       await refresh();
     },
     [refresh, ensureRoomType],
+  );
+
+  const saveGuest = useCallback(
+    async (guest: Guest, previous: Guest) => {
+      const override = guestOverrideFromGuest(guest, previous);
+      setGuestOverrides((prev) => {
+        const next = upsertGuestOverride(prev, override);
+        saveLocalGuestOverrides(next);
+        return next;
+      });
+
+      const contactChanged =
+        guest.name !== previous.name ||
+        guest.email !== previous.email ||
+        guest.phone !== previous.phone;
+
+      if (contactChanged) {
+        const previousEmail = previous.email.trim().toLowerCase();
+        const related = bookings.filter(
+          (booking) =>
+            booking.guest === previous.name ||
+            booking.email.trim().toLowerCase() === previousEmail,
+        );
+        if (related.length) {
+          setBookings((prev) =>
+            prev.map((booking) =>
+              booking.guest === previous.name ||
+              booking.email.trim().toLowerCase() === previousEmail
+                ? {
+                    ...booking,
+                    guest: guest.name,
+                    email: guest.email,
+                    phone: guest.phone,
+                  }
+                : booking,
+            ),
+          );
+          await Promise.allSettled(
+            related.map((booking) =>
+              updateStaffBooking(booking.id, {
+                guest: guest.name,
+                email: guest.email,
+                phone: guest.phone,
+              }),
+            ),
+          );
+          await refresh();
+        }
+      }
+    },
+    [bookings, refresh],
   );
 
   const addRoom = useCallback(
@@ -380,7 +461,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<OpsContextValue>(() => {
-    const guests = guestsFromBookings(bookings);
+    const guests = applyGuestOverrides(guestsFromBookings(bookings), guestOverrides);
     const payments = paymentsFromBookings(bookings);
     const invoices = invoicesFromBookings(bookings, today);
     return {
@@ -418,6 +499,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       saveRoom,
       saveRoomStatus,
       addRoom,
+      saveGuest,
       recordPayment,
       advanceMaintenance,
       reportMaintenance,
@@ -432,6 +514,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     rooms,
     staffRooms,
     roomTypes,
+    guestOverrides,
     maintenance,
     currentUser?.roleId,
     enquiryCount,
@@ -441,6 +524,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     saveRoom,
     saveRoomStatus,
     addRoom,
+    saveGuest,
     recordPayment,
     advanceMaintenance,
     reportMaintenance,

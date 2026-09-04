@@ -30,7 +30,7 @@ export function getPublicWebsiteBaseUrl(): string {
   }
   return (
     process.env.NEXT_PUBLIC_PUBLIC_WEBSITE_URL?.replace(/\/$/, "") ??
-    "http://localhost:3001"
+    "http://localhost:3000"
   );
 }
 

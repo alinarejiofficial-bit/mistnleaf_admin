@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { ImageUploadField } from "@/components/cms/CmsShared";
 import {
   emptyRoom,
+  emptyRoomForType,
   roomStatuses,
   roomTypes,
   type Room,
@@ -18,6 +19,8 @@ type RoomInventoryModalProps = {
   isNew?: boolean;
   existingRooms: Room[];
   roomTypesList?: string[];
+  /** When adding, preselect this type and suggest the next unit (e.g. 4th Mist Cottage). */
+  preferredType?: string;
   onClose: () => void;
   onSave: (room: Room) => void | Promise<void>;
 };
@@ -28,6 +31,7 @@ export function RoomInventoryModal({
   isNew = false,
   existingRooms,
   roomTypesList,
+  preferredType,
   onClose,
   onSave,
 }: RoomInventoryModalProps) {
@@ -43,14 +47,33 @@ export function RoomInventoryModal({
       setForm({ ...room });
       setAmenitiesText(room.amenities.join(", "));
     } else if (isNew) {
-      const draft = emptyRoom(existingRooms);
-      draft.type = typeOptions[0] ?? draft.type;
+      const typeName = preferredType?.trim() || typeOptions[0] || "Mist Cottage";
+      const draft = emptyRoomForType(existingRooms, typeName);
       setForm(draft);
       setAmenitiesText(draft.amenities.join(", "));
     }
-  }, [open, room, isNew, existingRooms, typeOptions.join("|")]);
+  }, [open, room, isNew, existingRooms, preferredType, typeOptions.join("|")]);
+
+  function applyType(nextType: string) {
+    if (!isNew) {
+      setForm((prev) => ({ ...prev, type: nextType as RoomType }));
+      return;
+    }
+    const draft = emptyRoomForType(existingRooms, nextType);
+    setForm((prev) => ({
+      ...draft,
+      id: prev.id,
+      status: prev.status,
+      imageUrl: prev.imageUrl,
+    }));
+    setAmenitiesText(draft.amenities.join(", "));
+  }
 
   if (!open) return null;
+
+  const ofTypeCount = existingRooms.filter(
+    (item) => item.type.trim().toLowerCase() === form.type.trim().toLowerCase(),
+  ).length;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4">
@@ -68,8 +91,10 @@ export function RoomInventoryModal({
             </h2>
             <p className="mt-1 text-sm text-muted">
               {isNew
-                ? "Create a new room in the property inventory."
-                : "Update room details, rate, and availability status."}
+                ? form.type
+                  ? `${form.type} already has ${ofTypeCount} room${ofTypeCount === 1 ? "" : "s"} — this adds the next unit (${form.number}).`
+                  : "Create a new bookable room under a room type."
+                : "Update this room’s details, rate, and availability status."}
             </p>
           </div>
           <button
@@ -98,7 +123,9 @@ export function RoomInventoryModal({
             )
               .then(() => onClose())
               .catch((err: unknown) => {
-                setFormError(err instanceof Error ? err.message : "Could not save room.");
+                setFormError(
+                  err instanceof Error ? err.message : "Could not save room.",
+                );
               })
               .finally(() => setSaving(false));
           }}
@@ -113,11 +140,12 @@ export function RoomInventoryModal({
                 disabled={!isNew}
               />
             </Field>
-            <Field label="Room number">
+            <Field label="Unit number">
               <input
                 value={form.number}
                 onChange={(event) => setForm({ ...form, number: event.target.value })}
                 className="field-input h-11"
+                placeholder="e.g. MC-04"
                 required
               />
             </Field>
@@ -126,6 +154,7 @@ export function RoomInventoryModal({
                 value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
                 className="field-input h-11"
+                placeholder="e.g. Mist Cottage MC-04"
                 required
               />
             </Field>
@@ -133,10 +162,8 @@ export function RoomInventoryModal({
               <input
                 list="mistnleaf-room-types"
                 value={form.type}
-                onChange={(event) =>
-                  setForm({ ...form, type: event.target.value as RoomType })
-                }
-                placeholder="Canopy Suite"
+                onChange={(event) => applyType(event.target.value)}
+                placeholder="e.g. Mist Cottage"
                 className="field-input h-11"
                 required
               />
@@ -146,7 +173,8 @@ export function RoomInventoryModal({
                 ))}
               </datalist>
               <span className="mt-1 block text-xs text-muted">
-                Pick an existing type or type a new name to create one.
+                Select a type to add another room under it (e.g. 4th Mist Cottage). Or
+                type a new name to start a type.
               </span>
             </Field>
             <Field label="Status">
@@ -257,7 +285,7 @@ export function RoomInventoryModal({
               disabled={saving}
               className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
             >
-              {saving ? "Saving…" : isNew ? "Add room" : "Save changes"}
+              {saving ? "Saving…" : isNew ? "Add room" : "Save room"}
             </button>
           </div>
         </form>

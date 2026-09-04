@@ -135,25 +135,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const sessionUser = loadedUsers.find((user) => user.id === sessionId) ?? null;
 
       // Restore JWT against Django so staff APIs (rooms, bookings) work after refresh.
-      if (sessionUser?.password && !getAccessToken()) {
-        try {
-          const backend = await loginToBackend(sessionUser.email, sessionUser.password);
-          if (cancelled) return;
-          const mapped = mapDirectoryUser({ ...backend.user, is_active: true });
-          const nextUsers = [
-            { ...mapped, password: sessionUser.password },
-            ...loadedUsers.filter(
-              (user) => user.email !== mapped.email && user.id !== mapped.id,
-            ),
-          ];
-          setUsers(nextUsers);
-          saveUsers(nextUsers);
-          setSessionUserId(mapped.id);
-          saveSessionUserId(mapped.id);
-          setReady(true);
-          return;
-        } catch {
-          // Keep the local session; OpsProvider will surface the API error.
+      if (sessionUser?.password) {
+        const hasToken = Boolean(getAccessToken());
+        if (!hasToken) {
+          try {
+            const backend = await loginToBackend(sessionUser.email, sessionUser.password);
+            if (cancelled) return;
+            const mapped = mapDirectoryUser({ ...backend.user, is_active: true });
+            const nextUsers = [
+              { ...mapped, password: sessionUser.password },
+              ...loadedUsers.filter(
+                (user) => user.email !== mapped.email && user.id !== mapped.id,
+              ),
+            ];
+            setUsers(nextUsers);
+            saveUsers(nextUsers);
+            setSessionUserId(mapped.id);
+            saveSessionUserId(mapped.id);
+            setReady(true);
+            return;
+          } catch {
+            // Local session without a live API token cannot load rooms — force re-login.
+            if (!cancelled) {
+              setUsers(loadedUsers);
+              setSessionUserId(null);
+              saveSessionUserId(null);
+              setReady(true);
+            }
+            return;
+          }
         }
       }
 
@@ -207,13 +217,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         saveSessionUserId(mapped.id);
         return { ok: true as const };
       } catch (err) {
-        return {
-          ok: false as const,
-          error:
-            err instanceof Error
-              ? err.message
-              : "Could not sign in against the Django API.",
-        };
+        // Never fall back to local-only login — that leaves no JWT and rooms stay empty.
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Could not sign in to the API. Is Django running on port 3001?";
+        return { ok: false as const, error: message };
       }
     },
     [persistUsers],

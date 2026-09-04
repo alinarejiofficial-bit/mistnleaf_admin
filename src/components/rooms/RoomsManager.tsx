@@ -125,7 +125,7 @@ export function RoomsManager() {
     <div className="space-y-6">
       <PageHeader
         title="Rooms"
-        description="Inventory, types, rates, and live availability across the property."
+        description="Add rooms under a type (e.g. filter Mist Cottage, then Add room for the next unit). Manage rates and availability."
         action={
           <PermissionGate action="rooms.create">
             <button
@@ -134,7 +134,7 @@ export function RoomsManager() {
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
             >
               <Plus className="h-4 w-4" />
-              Add room
+              {type !== "All" ? `Add ${type} room` : "Add room"}
             </button>
           </PermissionGate>
         }
@@ -142,7 +142,7 @@ export function RoomsManager() {
 
       {error ? (
         <p className="rounded-2xl border border-danger/20 bg-[#f8e9e6]/80 px-5 py-3 text-sm text-danger">
-          {error} Sign out and sign in again while Django is running on port 3001 so rooms load from the live database.
+          {error} Use Sign out, then sign in again at the login page while Django is on port 3001.
         </p>
       ) : null}
 
@@ -204,9 +204,12 @@ export function RoomsManager() {
       <div className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
         <section className="overflow-hidden rounded-2xl border border-border-subtle bg-surface shadow-sm">
           <div className="border-b border-border-subtle px-5 py-4">
-            <h2 className="font-display text-xl text-foreground">Room inventory</h2>
+            <h2 className="font-display text-xl text-foreground">Rooms</h2>
             <p className="mt-1 text-sm text-muted">
               Showing {filtered.length} of {rooms.length} rooms
+              {type !== "All"
+                ? ` · ${type} has ${rooms.filter((room) => room.type === type).length} unit(s)`
+                : ""}
             </p>
           </div>
 
@@ -300,6 +303,7 @@ export function RoomsManager() {
         isNew={roomModal === "new"}
         existingRooms={rooms}
         roomTypesList={types}
+        preferredType={type !== "All" ? type : undefined}
         onClose={() => setRoomModal(null)}
         onSave={persistRoom}
       />

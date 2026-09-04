@@ -19,21 +19,23 @@ export function canEditCmsContent(
 }
 
 export function getCmsPublicOrigin(): string {
-  return process.env.CMS_PUBLIC_ORIGIN ?? "http://localhost:3001";
+  return process.env.CMS_PUBLIC_ORIGIN ?? "http://localhost:3000";
 }
 
 export function getCmsAdminOrigin(): string {
-  return process.env.CMS_ADMIN_ORIGIN ?? "http://localhost:3000";
+  return process.env.CMS_ADMIN_ORIGIN ?? "http://localhost:3002";
 }
 
 const allowedOrigins = () =>
   new Set([
     getCmsPublicOrigin(),
     getCmsAdminOrigin(),
-    "http://localhost:3001",
     "http://localhost:3000",
-    "http://127.0.0.1:3001",
+    "http://localhost:3001",
+    "http://localhost:3002",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
   ]);
 
 export function corsHeaders(methods = "GET, OPTIONS", request?: Request) {

@@ -236,7 +236,7 @@ function WebsiteCmsShell({
                 rel="noopener noreferrer"
                 className="font-medium underline"
               >
-                http://localhost:3001
+                {getPublicWebsiteUrl("/")}
               </a>
               . Draft items stay hidden. Hard-refresh the public site (Ctrl+F5) after saving.
             </span>
@@ -254,18 +254,17 @@ function WebsiteCmsShell({
                 Website CMS
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted">
-                Edits save to the Django website at{" "}
+                Edits save to the public website at{" "}
                 <a
                   href={getPublicWebsiteUrl("/")}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-medium text-brand-mid underline"
                 >
-                  http://localhost:3001
+                  {getPublicWebsiteUrl("/")}
                 </a>
-                . Items must be <strong>Published</strong> to appear. Keep Django running with{" "}
-                <code className="rounded bg-surface px-1">python manage.py runserver 3001</code>
-                , then hard-refresh the public site (Ctrl+F5).
+                . Items must be <strong>Published</strong> to appear. Hard-refresh the public site
+                (Ctrl+F5) after saving.
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">

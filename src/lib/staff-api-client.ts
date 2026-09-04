@@ -3,18 +3,20 @@ import type { RoleId } from "@/lib/roles";
 const ACCESS_KEY = "mistnleaf_jwt_access";
 const REFRESH_KEY = "mistnleaf_jwt_refresh";
 
-/** Django API base for auth + staff endpoints. */
+/**
+ * Django API base for auth + staff endpoints.
+ * Always use 127.0.0.1 (not localhost) in local dev — Windows may route
+ * localhost:3001 to a leftover Next.js public site on 0.0.0.0:3001 while
+ * Django is bound only to 127.0.0.1:3001.
+ */
 export function getApiBase(): string {
   const configured =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
     process.env.NEXT_PUBLIC_CMS_API_URL?.replace(/\/$/, "");
-  if (configured) return configured;
-
-  if (typeof window !== "undefined") {
-    const { hostname, protocol } = window.location;
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return `${protocol}//${hostname}:3001`;
-    }
+  if (configured) {
+    return configured
+      .replace("://localhost:", "://127.0.0.1:")
+      .replace("://[::1]:", "://127.0.0.1:");
   }
   return "http://127.0.0.1:3001";
 }
@@ -292,6 +294,9 @@ export async function updateStaffBooking(
     paid_amount?: number;
     notes?: string;
     room_unit?: string;
+    guest?: string;
+    email?: string;
+    phone?: string;
   },
 ): Promise<StaffReservation> {
   return staffFetch<StaffReservation>(`/api/staff/bookings/${id}/`, {

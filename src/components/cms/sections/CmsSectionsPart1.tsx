@@ -114,7 +114,7 @@ export function RoomContentSection({ onPreview }: { onPreview: PreviewHandler })
     <div className="space-y-5">
       <SectionHeader
         title="Room content"
-        description="Manage public room pages — descriptions, images, amenities, and capacity. Published rooms sync to the live website at localhost:3001/rooms/."
+        description="Manage public room pages — descriptions, images, amenities, and capacity. Published rooms sync to the live website at localhost:3000/rooms/."
         actions={
           <button
             type="button"

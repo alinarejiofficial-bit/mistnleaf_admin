@@ -11,6 +11,7 @@ import {
   ToastPortal,
   useToast,
 } from "@/components/cms/CmsShared";
+import { getPublicWebsiteUrl } from "@/lib/public-site-nav";
 import type { CmsHomepage } from "@/lib/cms-data";
 
 type PreviewHandler = (section: string, data?: unknown) => void;
@@ -19,6 +20,7 @@ export function HomepageHeroEditor({ onPreview }: { onPreview: PreviewHandler })
   const { content, saveHomepage } = useCms();
   const { toast, showSuccess, clearToast } = useToast();
   const [homepage, setHomepage] = useState<CmsHomepage>(content.homepage);
+  const publicSiteUrl = getPublicWebsiteUrl("/");
 
   useEffect(() => {
     setHomepage(content.homepage);
@@ -26,7 +28,9 @@ export function HomepageHeroEditor({ onPreview }: { onPreview: PreviewHandler })
 
   function save() {
     saveHomepage({ ...homepage, updatedAt: new Date().toISOString().slice(0, 10) });
-    showSuccess("Hero banner saved. Check http://localhost:3001 (Ctrl+F5) — status must be Published.");
+    showSuccess(
+      `Hero banner saved. Check ${publicSiteUrl} (Ctrl+F5) — status must be Published.`,
+    );
   }
 
   return (

@@ -411,6 +411,23 @@ export function createNextRoomId(list: Room[]) {
   return { id: `RM-${next}`, number: next };
 }
 
+/** Next unit number for a type (e.g. Mist Cottage with MC-01..03 → MC-04). */
+export function nextUnitNumberForType(list: Room[], typeName: string): string {
+  const ofType = list.filter(
+    (room) => room.type.trim().toLowerCase() === typeName.trim().toLowerCase(),
+  );
+  const parsed = ofType
+    .map((room) => room.number.trim().match(/^(.*?)(\d+)$/))
+    .filter((match): match is RegExpMatchArray => Boolean(match));
+  if (parsed.length > 0) {
+    const prefix = parsed[0][1];
+    const width = Math.max(...parsed.map((match) => match[2].length));
+    const maxNum = Math.max(...parsed.map((match) => Number(match[2])));
+    return `${prefix}${String(maxNum + 1).padStart(width, "0")}`;
+  }
+  return String(ofType.length + 1).padStart(2, "0");
+}
+
 export function emptyRoom(list: Room[] = rooms): Room {
   const { id, number } = createNextRoomId(list);
   return {
@@ -426,4 +443,92 @@ export function emptyRoom(list: Room[] = rooms): Room {
     amenities: ["AC", "Wi-Fi", "Ensuite"],
     status: "Available",
   };
+}
+
+/** Draft a new room under a type, copying details from an existing unit when present. */
+export function emptyRoomForType(list: Room[], typeName: string): Room {
+  const trimmed = typeName.trim() || "Mist Cottage";
+  const base = emptyRoom(list);
+  const ofType = list.filter(
+    (room) => room.type.trim().toLowerCase() === trimmed.toLowerCase(),
+  );
+  const template = ofType[0];
+  const number = nextUnitNumberForType(list, trimmed);
+  const typeLabel = template?.type ?? trimmed;
+
+  return {
+    ...base,
+    type: typeLabel,
+    number,
+    name: `${typeLabel} ${number}`,
+    floor: template?.floor ?? 1,
+    capacity: template?.capacity ?? 2,
+    beds: template?.beds ?? "2 twin beds",
+    rate: template?.rate ?? 4800,
+    sizeSqFt: template?.sizeSqFt ?? 280,
+    amenities: template ? [...template.amenities] : ["AC", "Wi-Fi", "Ensuite"],
+    imageUrl: template?.imageUrl,
+    status: "Available",
+  };
+}
+
+export function bookingMatchesRoom(
+  booking: { room: string; roomType?: string },
+  room: Room,
+): boolean {
+  const label = booking.room.trim().toLowerCase();
+  if (!label) return false;
+  const number = room.number.trim().toLowerCase();
+  const name = room.name.trim().toLowerCase();
+  const type = room.type.trim().toLowerCase();
+  const id = room.id.trim().toLowerCase();
+  if (label === name || label === number || label === id) return true;
+  if (label === `${type} ${number}`) return true;
+  return Boolean(number) && label.includes(number) && label.includes(type);
+}
+
+/** Check-out day is exclusive. */
+export function datesOverlap(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string,
+): boolean {
+  return startA < endB && startB < endA;
+}
+
+const BLOCKING_BOOKING_STATUSES = new Set([
+  "Pending",
+  "Confirmed",
+  "Checked-in",
+]);
+
+export function isRoomAvailableForDates(
+  room: Room,
+  checkIn: string,
+  checkOut: string,
+  bookings: Array<{ room: string; roomType?: string; checkIn: string; checkOut: string; status: string }>,
+): boolean {
+  if (!checkIn || !checkOut || checkOut <= checkIn) return false;
+  if (room.status === "Maintenance") return false;
+  return !bookings.some(
+    (booking) =>
+      BLOCKING_BOOKING_STATUSES.has(booking.status) &&
+      bookingMatchesRoom(booking, room) &&
+      datesOverlap(booking.checkIn, booking.checkOut, checkIn, checkOut),
+  );
+}
+
+export function availableRoomsForType(
+  rooms: Room[],
+  roomType: string,
+  checkIn: string,
+  checkOut: string,
+  bookings: Array<{ room: string; roomType?: string; checkIn: string; checkOut: string; status: string }>,
+): Room[] {
+  const typeKey = roomType.trim().toLowerCase();
+  return rooms
+    .filter((room) => room.type.trim().toLowerCase() === typeKey)
+    .filter((room) => isRoomAvailableForDates(room, checkIn, checkOut, bookings))
+    .sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }));
 }

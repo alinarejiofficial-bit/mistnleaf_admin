@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { GuestEditModal } from "@/components/guests/GuestEditModal";
 import { useOps } from "@/components/ops/OpsProvider";
 import { formatINR, type Guest } from "@/lib/ops-data";
 import { formatDisplayDate } from "@/lib/data";
@@ -16,9 +17,10 @@ const statusStyles = {
 };
 
 export function GuestsManager() {
-  const { guests, bookings, payments } = useOps();
+  const { guests, bookings, payments, saveGuest } = useOps();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -30,10 +32,13 @@ export function GuestsManager() {
         g.phone.includes(q) ||
         g.id.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [guests, query]);
 
   const selected =
-    filtered.find((g) => g.id === selectedId) ?? filtered[0] ?? null;
+    filtered.find((g) => g.id === selectedId) ??
+    guests.find((g) => g.id === selectedId) ??
+    filtered[0] ??
+    null;
 
   return (
     <div className="space-y-6">
@@ -125,8 +130,24 @@ export function GuestsManager() {
             </table>
           </div>
         </SectionCard>
-        <GuestPanel guest={selected} bookings={bookings} payments={payments} />
+        <GuestPanel
+          guest={selected}
+          bookings={bookings}
+          payments={payments}
+          onEdit={() => selected && setEditingGuest(selected)}
+        />
       </div>
+
+      <GuestEditModal
+        open={editingGuest !== null}
+        guest={editingGuest}
+        onClose={() => setEditingGuest(null)}
+        onSave={async (guest) => {
+          if (!editingGuest) return;
+          await saveGuest(guest, editingGuest);
+          setSelectedId(guest.id);
+        }}
+      />
     </div>
   );
 }
@@ -135,10 +156,12 @@ function GuestPanel({
   guest,
   bookings,
   payments,
+  onEdit,
 }: {
   guest: Guest | null;
   bookings: import("@/lib/reservations").Reservation[];
   payments: import("@/lib/ops-data").Payment[];
+  onEdit: () => void;
 }) {
   if (!guest) {
     return (
@@ -148,8 +171,15 @@ function GuestPanel({
     );
   }
 
-  const guestBookings = bookings.filter((r) => r.guest === guest.name);
-  const guestPayments = payments.filter((p) => p.guest === guest.name);
+  const emailKey = guest.email.trim().toLowerCase();
+  const guestBookings = bookings.filter(
+    (r) => r.guest === guest.name || r.email.trim().toLowerCase() === emailKey,
+  );
+  const guestPayments = payments.filter(
+    (p) =>
+      p.guest === guest.name ||
+      guestBookings.some((booking) => booking.id === p.reservationId),
+  );
   const currentBooking = guestBookings.find(
     (r) => r.status === "Checked-in" || r.status === "Confirmed",
   );
@@ -164,7 +194,7 @@ function GuestPanel({
       <div className="mt-5 space-y-3 text-sm">
         <Row label="Email" value={guest.email} />
         <Row label="Phone" value={guest.phone} />
-        <Row label="Nationality" value={guest.nationality} />
+        <Row label="Nationality" value={guest.nationality || "—"} />
         <Row label="Last stay" value={guest.lastStay} />
         <Row label="Total spend" value={formatINR(guest.totalSpend)} />
         <Row label="Status" value={guest.status} />
@@ -225,7 +255,7 @@ function GuestPanel({
       <PermissionGate action="guests.edit">
         <button
           type="button"
-          onClick={() => window.alert("Edit guest (demo).")}
+          onClick={onEdit}
           className="mt-5 w-full rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-surface-muted"
         >
           Edit guest
