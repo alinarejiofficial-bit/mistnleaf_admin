@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+
+type ToastTone = "success" | "error";
 
 export function useFloatingToast() {
   const [message, setMessage] = useState<string | null>(null);
+  const [tone, setTone] = useState<ToastTone>("success");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -14,9 +17,10 @@ export function useFloatingToast() {
 
   const clear = useCallback(() => setMessage(null), []);
 
-  const showToast = useCallback((text: string) => {
+  const showToast = useCallback((text: string, nextTone: ToastTone = "success") => {
+    setTone(nextTone);
     setMessage(text);
-    window.setTimeout(() => setMessage(null), 2800);
+    window.setTimeout(() => setMessage(null), 3200);
   }, []);
 
   useEffect(() => {
@@ -27,6 +31,8 @@ export function useFloatingToast() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [message, clear]);
+
+  const isError = tone === "error";
 
   const toast =
     mounted && message !== null
@@ -47,10 +53,20 @@ export function useFloatingToast() {
               className="relative z-10 w-full max-w-sm rounded-2xl border border-border-subtle bg-surface p-5 text-center shadow-xl"
               onClick={(event) => event.stopPropagation()}
             >
-              <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#e8f3ec] text-success">
-                <CheckCircle2 className="h-6 w-6" />
+              <span
+                className={`mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full ${
+                  isError ? "bg-[#f8e9e6] text-danger" : "bg-[#e8f3ec] text-success"
+                }`}
+              >
+                {isError ? (
+                  <AlertCircle className="h-6 w-6" />
+                ) : (
+                  <CheckCircle2 className="h-6 w-6" />
+                )}
               </span>
-              <h3 className="mt-3 font-display text-xl text-foreground">Saved</h3>
+              <h3 className="mt-3 font-display text-xl text-foreground">
+                {isError ? "Couldn’t save" : "Saved"}
+              </h3>
               <p className="mt-2 text-sm text-muted">{message}</p>
               <button
                 type="button"

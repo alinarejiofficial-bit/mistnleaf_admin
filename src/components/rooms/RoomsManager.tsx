@@ -107,7 +107,7 @@ export function RoomsManager() {
       showToast(isUpdate ? "Room updated." : "Room added.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not save room.";
-      showToast(message);
+      showToast(message, "error");
       throw err instanceof Error ? err : new Error(message);
     }
   }
@@ -117,7 +117,7 @@ export function RoomsManager() {
       await saveRoomStatus(room);
       showToast(`${room.name} marked as ${room.status}.`);
     } catch {
-      showToast("Could not update room status.");
+      showToast("Could not update room status.", "error");
     }
   }
 

@@ -68,7 +68,7 @@ export function ReservationsManager() {
     try {
       await saveBooking(id, patch);
     } catch {
-      showToast("Could not save booking change to the backend.");
+      showToast("Could not save booking change to the backend.", "error");
     }
   }
 
@@ -338,7 +338,10 @@ export function ReservationsManager() {
               setCreateOpen(false);
               showToast("Booking created.");
             } catch (err) {
-              showToast(err instanceof Error ? err.message : "Could not create booking.");
+              showToast(
+                err instanceof Error ? err.message : "Could not create booking.",
+                "error",
+              );
             }
           }}
         />

@@ -260,12 +260,15 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
             item.code === input.roomName ||
             item.number === input.roomName,
         );
+      // Django expects `room` / `roomType` to be a room-type slug or name — not the unit label.
+      const typeSlug = unit?.room_type_slug?.trim();
+      const typeName = (unit?.room_type_name || unit?.type || input.roomType).trim();
       await createStaffBooking({
         guest: input.guest,
         email: input.email,
         phone: input.phone,
-        room: input.roomName || unit?.display_name || unit?.name || input.roomType,
-        roomType: input.roomType,
+        room: typeSlug || typeName,
+        roomType: typeName,
         room_unit: input.roomId || unit?.id,
         checkIn: input.checkIn,
         checkOut: input.checkOut,
