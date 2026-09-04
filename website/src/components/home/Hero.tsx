@@ -48,20 +48,6 @@ export function Hero({ hero }: HeroProps) {
           </div>
         </div>
       </div>
-
-      <div className="hero-mist" aria-hidden>
-        <div className="hero-mist__veil hero-mist__veil--left">
-          <span className="hero-mist__bloom hero-mist__bloom--l1" />
-          <span className="hero-mist__bloom hero-mist__bloom--l2" />
-          <span className="hero-mist__bloom hero-mist__bloom--l3" />
-        </div>
-        <div className="hero-mist__veil hero-mist__veil--right">
-          <span className="hero-mist__bloom hero-mist__bloom--r1" />
-          <span className="hero-mist__bloom hero-mist__bloom--r2" />
-          <span className="hero-mist__bloom hero-mist__bloom--r3" />
-        </div>
-        <div className="hero-mist__haze" />
-      </div>
     </section>
   );
 }
