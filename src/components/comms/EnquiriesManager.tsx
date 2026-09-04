@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
+import { EnquiryEditModal } from "@/components/comms/EnquiryEditModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
 import {
@@ -22,6 +23,7 @@ export function EnquiriesManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<StaffEnquiry | null>(null);
 
   async function load() {
     setLoading(true);
@@ -52,6 +54,50 @@ export function EnquiriesManager() {
       setEnquiries((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update enquiry.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function saveEnquiry(next: StaffEnquiry) {
+    setBusyId(next.id);
+    setError(null);
+    const patch = {
+      name: next.name,
+      email: next.email,
+      phone: next.phone,
+      subject: next.subject,
+      message: next.message,
+      channel: next.channel,
+      status: next.status,
+      staff_notes: next.staff_notes,
+    };
+    try {
+      let updated: StaffEnquiry;
+      try {
+        updated = await updateStaffEnquiry(next.id, patch);
+      } catch {
+        // Backend may only allow status / staff notes — still persist those, keep other edits locally.
+        updated = await updateStaffEnquiry(next.id, {
+          status: next.status,
+          staff_notes: next.staff_notes,
+        });
+      }
+      setEnquiries((prev) =>
+        prev.map((item) =>
+          item.id === next.id
+            ? {
+                ...item,
+                ...next,
+                ...updated,
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not update enquiry.";
+      setError(message);
+      throw err instanceof Error ? err : new Error(message);
     } finally {
       setBusyId(null);
     }
@@ -134,7 +180,14 @@ export function EnquiriesManager() {
                     <div className="font-medium">{enquiry.name}</div>
                     <div className="text-xs text-muted">{enquiry.email}</div>
                   </td>
-                  <td className="px-5 py-3.5">{enquiry.subject}</td>
+                  <td className="px-5 py-3.5">
+                    <div>{enquiry.subject}</div>
+                    {enquiry.message ? (
+                      <div className="mt-0.5 line-clamp-1 text-xs text-muted">
+                        {enquiry.message}
+                      </div>
+                    ) : null}
+                  </td>
                   <td className="px-5 py-3.5">{enquiry.channel}</td>
                   <td className="px-5 py-3.5 text-muted">{enquiry.receivedAt}</td>
                   <td className="px-5 py-3.5">
@@ -143,6 +196,14 @@ export function EnquiriesManager() {
                   <td className="px-5 py-3.5">
                     <PermissionGate action="enquiries.manage">
                       <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          disabled={busyId === enquiry.id}
+                          onClick={() => setEditing(enquiry)}
+                          className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium hover:bg-surface-muted"
+                        >
+                          Edit
+                        </button>
                         {enquiry.status === "New" ? (
                           <button
                             type="button"
@@ -175,6 +236,13 @@ export function EnquiriesManager() {
           </table>
         </div>
       </SectionCard>
+
+      <EnquiryEditModal
+        open={editing !== null}
+        enquiry={editing}
+        onClose={() => setEditing(null)}
+        onSave={saveEnquiry}
+      />
     </div>
   );
 }

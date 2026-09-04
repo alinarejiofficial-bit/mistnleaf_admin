@@ -259,7 +259,16 @@ export async function fetchStaffEnquiries(params?: {
 
 export async function updateStaffEnquiry(
   id: string,
-  patch: { status?: string; staff_notes?: string },
+  patch: {
+    status?: string;
+    staff_notes?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    subject?: string;
+    message?: string;
+    channel?: string;
+  },
 ): Promise<StaffEnquiry> {
   return staffFetch<StaffEnquiry>(`/api/staff/enquiries/${id}/`, {
     method: "PATCH",
