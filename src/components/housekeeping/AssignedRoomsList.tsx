@@ -140,9 +140,17 @@ export function AssignedRoomsList({
         open={Boolean(editingRoom)}
         room={editingRoom}
         onClose={() => setEditingRoom(null)}
-        onSave={(roomId, patch) => {
-          updateRoom(roomId, patch);
-          showToast("Room details updated.");
+        onSave={async (roomId, patch) => {
+          try {
+            await updateRoom(roomId, patch);
+            showToast("Room details updated.");
+          } catch (err) {
+            showToast(
+              err instanceof Error ? err.message : "Could not update room.",
+              "error",
+            );
+            throw err;
+          }
         }}
       />
 

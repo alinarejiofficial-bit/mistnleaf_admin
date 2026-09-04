@@ -26,7 +26,7 @@ type AssignedRoomEditModalProps = {
   open: boolean;
   room: AssignedRoom | null;
   onClose: () => void;
-  onSave: (roomId: string, patch: Partial<AssignedRoom>) => void;
+  onSave: (roomId: string, patch: Partial<AssignedRoom>) => void | Promise<void>;
 };
 
 export function AssignedRoomEditModal({
@@ -41,6 +41,8 @@ export function AssignedRoomEditModal({
   const [checkoutTime, setCheckoutTime] = useState("");
   const [checkinTime, setCheckinTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     if (!open || !room) return;
@@ -50,24 +52,11 @@ export function AssignedRoomEditModal({
     setCheckoutTime(room.checkoutTime ?? "");
     setCheckinTime(room.checkinTime ?? "");
     setNotes(room.notes ?? "");
+    setFormError("");
+    setSaving(false);
   }, [open, room]);
 
   if (!open || !room) return null;
-
-  const activeRoom = room;
-
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    onSave(activeRoom.id, {
-      status,
-      priority,
-      taskType,
-      checkoutTime: checkoutTime.trim() || undefined,
-      checkinTime: checkinTime.trim() || undefined,
-      notes: notes.trim() || undefined,
-    });
-    onClose();
-  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4">
@@ -80,7 +69,7 @@ export function AssignedRoomEditModal({
       <div className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-border-subtle bg-surface shadow-xl sm:rounded-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="font-display text-xl text-foreground">Update room</h2>
+            <h2 className="font-display text-xl text-foreground">Edit room task</h2>
             <p className="mt-1 text-sm text-muted">
               {room.roomNumber} · {room.roomType}
             </p>
@@ -94,7 +83,31 @@ export function AssignedRoomEditModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto px-5 py-4">
+        <form
+          className="space-y-4 overflow-y-auto px-5 py-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSaving(true);
+            setFormError("");
+            void Promise.resolve(
+              onSave(room.id, {
+                status,
+                priority,
+                taskType,
+                checkoutTime: checkoutTime.trim(),
+                checkinTime: checkinTime.trim(),
+                notes: notes.trim(),
+              }),
+            )
+              .then(() => onClose())
+              .catch((err: unknown) => {
+                setFormError(
+                  err instanceof Error ? err.message : "Could not save room updates.",
+                );
+              })
+              .finally(() => setSaving(false));
+          }}
+        >
           <label className="block text-sm">
             <span className="mb-1.5 block font-medium text-foreground">Status</span>
             <select
@@ -148,25 +161,33 @@ export function AssignedRoomEditModal({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm">
-              <span className="mb-1.5 block font-medium text-foreground">Check-out time</span>
+              <span className="mb-1.5 block font-medium text-foreground">
+                Check-out (guest leaving)
+              </span>
               <input
                 value={checkoutTime}
                 onChange={(event) => setCheckoutTime(event.target.value)}
-                placeholder="e.g. 11:00 AM"
+                placeholder="e.g. 11:00 AM or 4 Sept"
                 className="field-input h-11"
               />
             </label>
 
             <label className="block text-sm">
-              <span className="mb-1.5 block font-medium text-foreground">Check-in time</span>
+              <span className="mb-1.5 block font-medium text-foreground">
+                Check-in (next arrival)
+              </span>
               <input
                 value={checkinTime}
                 onChange={(event) => setCheckinTime(event.target.value)}
-                placeholder="e.g. 3:00 PM"
+                placeholder="e.g. 3:00 PM or 5 Sept"
                 className="field-input h-11"
               />
             </label>
           </div>
+          <p className="text-xs text-muted">
+            Times/dates show on My Rooms. Leave blank to clear. Booking dates fill in
+            automatically when available.
+          </p>
 
           <label className="block text-sm">
             <span className="mb-1.5 block font-medium text-foreground">Notes</span>
@@ -179,6 +200,12 @@ export function AssignedRoomEditModal({
             />
           </label>
 
+          {formError ? (
+            <p className="rounded-xl border border-danger/20 bg-[#f8e9e6] px-3 py-2 text-sm text-danger">
+              {formError}
+            </p>
+          ) : null}
+
           <div className="flex flex-col-reverse gap-2 border-t border-border-subtle pt-4 sm:flex-row sm:justify-end">
             <button
               type="button"
@@ -189,9 +216,10 @@ export function AssignedRoomEditModal({
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
+              disabled={saving}
+              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover disabled:opacity-60"
             >
-              Save changes
+              {saving ? "Saving…" : "Save changes"}
             </button>
           </div>
         </form>

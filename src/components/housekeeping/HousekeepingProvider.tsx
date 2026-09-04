@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useState,
 } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useOps } from "@/components/ops/OpsProvider";
@@ -16,6 +18,14 @@ import {
   type MaintenanceIssueCategory,
   type StaffMaintenanceReport,
 } from "@/lib/housekeeping-data";
+import {
+  applyHkRoomOverlays,
+  enrichAssignedRoomsWithBookings,
+  loadHkRoomOverlays,
+  saveHkRoomOverlays,
+  upsertHkRoomOverlay,
+  type HkRoomOverlay,
+} from "@/lib/ops-hk-local";
 import { housekeepingPatchFromStatus } from "@/lib/ops-live";
 
 type HousekeepingContextValue = {
@@ -24,8 +34,8 @@ type HousekeepingContextValue = {
   summary: ReturnType<typeof countByStatus>;
   propertySummary: ReturnType<typeof countByStatus>;
   reports: StaffMaintenanceReport[];
-  updateRoomStatus: (roomId: string, action: string) => void;
-  updateRoom: (roomId: string, patch: Partial<AssignedRoom>) => void;
+  updateRoomStatus: (roomId: string, action: string) => Promise<void>;
+  updateRoom: (roomId: string, patch: Partial<AssignedRoom>) => Promise<void>;
   reportIssue: (input: {
     room: string;
     category: MaintenanceIssueCategory;
@@ -39,8 +49,17 @@ export function HousekeepingProvider({ children }: { children: React.ReactNode }
   const { currentUser } = useAuth();
   const ops = useOps();
   const staffName = currentUser?.name ?? "";
+  const [overlays, setOverlays] = useState<HkRoomOverlay[]>([]);
 
-  const allRooms = ops.hkRooms;
+  useEffect(() => {
+    setOverlays(loadHkRoomOverlays());
+  }, []);
+
+  const allRooms = useMemo(() => {
+    const enriched = enrichAssignedRoomsWithBookings(ops.hkRooms, ops.bookings);
+    return applyHkRoomOverlays(enriched, overlays);
+  }, [ops.hkRooms, ops.bookings, overlays]);
+
   const myRooms = useMemo(() => {
     const mine = allRooms.filter(
       (room) =>
@@ -64,26 +83,62 @@ export function HousekeepingProvider({ children }: { children: React.ReactNode }
     [ops.maintenance],
   );
 
+  const persistOverlay = useCallback((roomId: string, patch: Partial<AssignedRoom>) => {
+    setOverlays((prev) => {
+      const existing = prev.find((item) => item.id === roomId);
+      const next: HkRoomOverlay = {
+        id: roomId,
+        priority: patch.priority ?? existing?.priority,
+        taskType: patch.taskType ?? existing?.taskType,
+        checkoutTime:
+          patch.checkoutTime !== undefined
+            ? patch.checkoutTime
+            : existing?.checkoutTime,
+        checkinTime:
+          patch.checkinTime !== undefined ? patch.checkinTime : existing?.checkinTime,
+        notes: patch.notes !== undefined ? patch.notes : existing?.notes,
+        status: patch.status ?? existing?.status,
+      };
+      const merged = upsertHkRoomOverlay(prev, next);
+      saveHkRoomOverlays(merged);
+      return merged;
+    });
+  }, []);
+
   const updateRoomStatus = useCallback(
-    (roomId: string, action: string) => {
+    async (roomId: string, action: string) => {
       const room = allRooms.find((item) => item.id === roomId);
       if (!room) return;
       const next = nextStatus(room.status, action);
-      void ops.updateHousekeeping(roomId, housekeepingPatchFromStatus(next));
+      persistOverlay(roomId, { status: next });
+      await ops.updateHousekeeping(roomId, housekeepingPatchFromStatus(next));
     },
-    [allRooms, ops],
+    [allRooms, ops, persistOverlay],
   );
 
   const updateRoom = useCallback(
-    (roomId: string, patch: Partial<AssignedRoom>) => {
-      if (patch.assignee) {
-        void ops.updateHousekeeping(roomId, { assignee: patch.assignee });
-      }
+    async (roomId: string, patch: Partial<AssignedRoom>) => {
+      persistOverlay(roomId, patch);
+
+      const apiPatch: {
+        status?: string;
+        housekeeping_status?: string;
+        assignee?: string;
+        notes?: string;
+        dashboardStatus?: string;
+      } = {};
+
       if (patch.status) {
-        void ops.updateHousekeeping(roomId, housekeepingPatchFromStatus(patch.status));
+        Object.assign(apiPatch, housekeepingPatchFromStatus(patch.status));
+      }
+      if (patch.assignee) apiPatch.assignee = patch.assignee;
+      if (patch.notes !== undefined) apiPatch.notes = patch.notes ?? "";
+
+      if (Object.keys(apiPatch).length > 0) {
+        await ops.updateHousekeeping(roomId, apiPatch);
       }
     },
-    [ops],
+    [ops, persistOverlay],
   );
 
   const reportIssue = useCallback(
