@@ -20,6 +20,10 @@ import {
   calendarFromOps,
   checkInQueueFromBookings,
   checkOutQueueFromBookings,
+  checkedInTodayFromBookings,
+  checkedOutTodayFromBookings,
+  upcomingCheckInsFromBookings,
+  upcomingCheckOutsFromBookings,
   financeInvoicesFromBookings,
   financePaymentsFromBookings,
   financeRefundsFromBookings,
@@ -87,6 +91,10 @@ type OpsContextValue = {
   calendar: ReturnType<typeof calendarFromOps>;
   checkInQueue: Reservation[];
   checkOutQueue: Reservation[];
+  upcomingCheckIns: Reservation[];
+  upcomingCheckOuts: Reservation[];
+  checkedInToday: Reservation[];
+  checkedOutToday: Reservation[];
   hkRooms: ReturnType<typeof assignedRoomsFromStaff>;
   hkTasks: ReturnType<typeof tasksFromRooms>;
   financePayments: ReturnType<typeof financePaymentsFromBookings>;
@@ -489,6 +497,10 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       calendar: calendarFromOps(rooms, bookings, today),
       checkInQueue: checkInQueueFromBookings(bookings, today),
       checkOutQueue: checkOutQueueFromBookings(bookings, today),
+      upcomingCheckIns: upcomingCheckInsFromBookings(bookings, today),
+      upcomingCheckOuts: upcomingCheckOutsFromBookings(bookings, today),
+      checkedInToday: checkedInTodayFromBookings(bookings, today),
+      checkedOutToday: checkedOutTodayFromBookings(bookings, today),
       hkRooms: assignedRoomsFromStaff(staffRooms),
       hkTasks: tasksFromRooms(staffRooms),
       financePayments: financePaymentsFromBookings(bookings),

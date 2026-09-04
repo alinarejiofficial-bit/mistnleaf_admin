@@ -258,16 +258,65 @@ export function calendarFromOps(rooms: Room[], bookings: Reservation[], start = 
 }
 
 export function checkInQueueFromBookings(bookings: Reservation[], today = todayISO()) {
-  return bookings.filter(
-    (booking) =>
-      booking.checkIn === today &&
-      (booking.status === "Confirmed" || booking.status === "Pending"),
-  );
+  return bookings
+    .filter(
+      (booking) =>
+        (booking.status === "Confirmed" || booking.status === "Pending") &&
+        booking.checkIn <= today,
+    )
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.guest.localeCompare(b.guest));
+}
+
+/** Upcoming arrivals in the next few days (not yet due). */
+export function upcomingCheckInsFromBookings(
+  bookings: Reservation[],
+  today = todayISO(),
+  withinDays = 7,
+) {
+  const until = addDaysISO(today, withinDays);
+  return bookings
+    .filter(
+      (booking) =>
+        (booking.status === "Confirmed" || booking.status === "Pending") &&
+        booking.checkIn > today &&
+        booking.checkIn <= until,
+    )
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
 }
 
 export function checkOutQueueFromBookings(bookings: Reservation[], today = todayISO()) {
+  return bookings
+    .filter(
+      (booking) => booking.status === "Checked-in" && booking.checkOut <= today,
+    )
+    .sort((a, b) => a.checkOut.localeCompare(b.checkOut) || a.guest.localeCompare(b.guest));
+}
+
+export function upcomingCheckOutsFromBookings(
+  bookings: Reservation[],
+  today = todayISO(),
+  withinDays = 7,
+) {
+  const until = addDaysISO(today, withinDays);
+  return bookings
+    .filter(
+      (booking) =>
+        booking.status === "Checked-in" &&
+        booking.checkOut > today &&
+        booking.checkOut <= until,
+    )
+    .sort((a, b) => a.checkOut.localeCompare(b.checkOut));
+}
+
+export function checkedInTodayFromBookings(bookings: Reservation[], today = todayISO()) {
   return bookings.filter(
-    (booking) => booking.checkOut === today && booking.status === "Checked-in",
+    (booking) => booking.status === "Checked-in" && booking.checkIn === today,
+  );
+}
+
+export function checkedOutTodayFromBookings(bookings: Reservation[], today = todayISO()) {
+  return bookings.filter(
+    (booking) => booking.status === "Checked-out" && booking.checkOut === today,
   );
 }
 
