@@ -6,8 +6,8 @@ import { MistnLeafLogo } from "@/components/brand/MistnLeafLogo";
 
 export function LoginForm() {
   const { login } = useAuth();
-  const [email, setEmail] = useState("admin@mistnleaf.com");
-  const [password, setPassword] = useState("Admin@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -37,7 +37,7 @@ export function LoginForm() {
             Admin sign in
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Use a demo account below, or sign in with your staff email.
+            Sign in with your staff email and password.
           </p>
         </div>
 
@@ -84,90 +84,6 @@ export function LoginForm() {
             {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
-
-        <div className="mt-6 space-y-3">
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("admin@mistnleaf.com");
-              setPassword("Admin@123");
-              setError("");
-            }}
-            className="w-full rounded-xl border border-border-subtle bg-surface-muted/70 px-3.5 py-3 text-left text-xs text-muted transition hover:bg-surface-muted"
-          >
-            <p className="font-medium text-foreground">Demo Super Admin</p>
-            <p className="mt-1">admin@mistnleaf.com</p>
-            <p>Admin@123</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("neha@mistnleaf.com");
-              setPassword("Staff@123");
-              setError("");
-            }}
-            className="w-full rounded-xl border border-accent/30 bg-accent-soft/50 px-3.5 py-3 text-left text-xs text-muted transition hover:bg-accent-soft"
-          >
-            <p className="font-medium text-foreground">Demo Resort Manager</p>
-            <p className="mt-1">neha@mistnleaf.com</p>
-            <p>Staff@123</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("arjun@mistnleaf.com");
-              setPassword("Staff@123");
-              setError("");
-            }}
-            className="w-full rounded-xl border border-info/30 bg-[#e7f0f5]/70 px-3.5 py-3 text-left text-xs text-muted transition hover:bg-[#e7f0f5]"
-          >
-            <p className="font-medium text-foreground">Demo Front Desk</p>
-            <p className="mt-1">arjun@mistnleaf.com</p>
-            <p>Staff@123</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("sofia@mistnleaf.com");
-              setPassword("Staff@123");
-              setError("");
-            }}
-            className="w-full rounded-xl border border-success/30 bg-[#e8f3ec]/70 px-3.5 py-3 text-left text-xs text-muted transition hover:bg-[#e8f3ec]"
-          >
-            <p className="font-medium text-foreground">Demo Housekeeping</p>
-            <p className="mt-1">sofia@mistnleaf.com</p>
-            <p>Staff@123</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("kavya@mistnleaf.com");
-              setPassword("Staff@123");
-              setError("");
-            }}
-            className="w-full rounded-xl border border-[#4a5d6a]/30 bg-[#e8eef1]/80 px-3.5 py-3 text-left text-xs text-muted transition hover:bg-[#e8eef1]"
-          >
-            <p className="font-medium text-foreground">Demo Accountant</p>
-            <p className="mt-1">kavya@mistnleaf.com</p>
-            <p>Staff@123</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("ishaan@mistnleaf.com");
-              setPassword("Staff@123");
-              setError("");
-            }}
-            className="w-full rounded-xl border border-brand/30 bg-brand-soft/50 px-3.5 py-3 text-left text-xs text-muted transition hover:bg-brand-soft"
-          >
-            <p className="font-medium text-foreground">Demo Website CMS</p>
-            <p className="mt-1">ishaan@mistnleaf.com</p>
-            <p>Staff@123</p>
-          </button>
-          <p className="text-center text-xs text-muted">
-            All staff use this same login page — your role is determined by your account.
-          </p>
-        </div>
       </div>
     </div>
   );
