@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { MistnLeafLogo } from "@/components/brand/MistnLeafLogo";
 
@@ -8,6 +9,7 @@ export function LoginForm() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,7 +53,7 @@ export function LoginForm() {
               autoComplete="username"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
+              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none transition focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
               required
             />
           </label>
@@ -60,18 +62,33 @@ export function LoginForm() {
             <span className="mb-1.5 block text-sm font-medium text-foreground">
               Password
             </span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="h-11 w-full rounded-xl border border-border bg-surface px-3 pr-11 text-sm text-foreground outline-none transition focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted transition hover:text-foreground"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden />
+                )}
+              </button>
+            </div>
           </label>
 
           {error ? (
-            <p className="text-sm text-danger" role="alert">
+            <p className="text-sm font-medium text-danger" role="alert">
               {error}
             </p>
           ) : null}
