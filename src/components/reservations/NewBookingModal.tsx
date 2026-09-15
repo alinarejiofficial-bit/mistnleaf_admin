@@ -12,6 +12,12 @@ const bookingSources: BookingSource[] = [
   "Travel agent",
 ];
 
+function dayAfter(iso: string) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 type NewBookingModalProps = {
   roomTypes: string[];
   rooms: Room[];
@@ -49,7 +55,7 @@ export function NewBookingModal({
     roomType: roomTypes[0] ?? "",
     roomId: "",
     checkIn: today,
-    checkOut: "",
+    checkOut: dayAfter(today),
     adults: "2",
     children: "0",
     source: "Walk-in" as BookingSource,
@@ -195,14 +201,21 @@ export function NewBookingModal({
               <input
                 required
                 type="date"
+                min={today}
                 value={form.checkIn}
-                onChange={(event) =>
+                onChange={(event) => {
+                  const nextCheckIn = event.target.value;
+                  const minOut = nextCheckIn ? dayAfter(nextCheckIn) : "";
                   setForm((prev) => ({
                     ...prev,
-                    checkIn: event.target.value,
+                    checkIn: nextCheckIn,
+                    checkOut:
+                      !prev.checkOut || !nextCheckIn || prev.checkOut <= nextCheckIn
+                        ? minOut
+                        : prev.checkOut,
                     roomId: "",
-                  }))
-                }
+                  }));
+                }}
                 className="field-input h-11 w-full"
               />
             </label>
@@ -211,6 +224,7 @@ export function NewBookingModal({
               <input
                 required
                 type="date"
+                min={form.checkIn ? dayAfter(form.checkIn) : dayAfter(today)}
                 value={form.checkOut}
                 onChange={(event) =>
                   setForm((prev) => ({
@@ -229,7 +243,7 @@ export function NewBookingModal({
             </span>
             {!form.checkIn || !form.checkOut || form.checkOut <= form.checkIn ? (
               <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted">
-                Choose check-in and check-out to see available rooms.
+                Choose a check-out date after check-in to see available rooms.
               </p>
             ) : availableRooms.length === 0 ? (
               <p className="rounded-xl border border-danger/20 bg-[#f8e9e6]/70 px-3 py-3 text-sm text-danger">
