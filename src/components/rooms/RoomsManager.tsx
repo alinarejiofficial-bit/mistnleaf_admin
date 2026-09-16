@@ -125,7 +125,7 @@ export function RoomsManager() {
     <div className="space-y-6">
       <PageHeader
         title="Rooms"
-        description="Add rooms under a type (e.g. filter Mist Cottage, then Add room for the next unit). Manage rates and availability."
+        description="Add from an existing type or from scratch. Manage rates and availability."
         action={
           <PermissionGate action="rooms.create">
             <button

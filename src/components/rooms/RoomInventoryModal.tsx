@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { ImageUploadField } from "@/components/cms/CmsShared";
 import {
   emptyRoom,
   emptyRoomForType,
+  emptyRoomFromScratch,
   roomStatuses,
   roomTypes,
   type Room,
   type RoomStatus,
   type RoomType,
 } from "@/lib/rooms";
+
+type AddMode = "type" | "scratch";
 
 type RoomInventoryModalProps = {
   open: boolean;
@@ -36,27 +38,63 @@ export function RoomInventoryModal({
   onSave,
 }: RoomInventoryModalProps) {
   const typeOptions = roomTypesList?.length ? roomTypesList : roomTypes;
+  const [addMode, setAddMode] = useState<AddMode>(
+    preferredType ? "type" : "scratch",
+  );
   const [form, setForm] = useState<Room>(emptyRoom(existingRooms));
   const [amenitiesText, setAmenitiesText] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+
+  function loadDraft(mode: AddMode, typeName?: string) {
+    if (mode === "scratch") {
+      const draft = emptyRoomFromScratch(existingRooms);
+      setForm(draft);
+      setAmenitiesText("");
+      return;
+    }
+    const name = typeName?.trim() || preferredType?.trim() || typeOptions[0] || "";
+    if (!name) {
+      const draft = emptyRoomFromScratch(existingRooms);
+      setForm(draft);
+      setAmenitiesText("");
+      return;
+    }
+    const draft = emptyRoomForType(existingRooms, name);
+    setForm(draft);
+    setAmenitiesText(draft.amenities.join(", "));
+  }
 
   useEffect(() => {
     if (!open) return;
     if (room) {
       setForm({ ...room });
       setAmenitiesText(room.amenities.join(", "));
-    } else if (isNew) {
-      const typeName = preferredType?.trim() || typeOptions[0] || "Mist Cottage";
-      const draft = emptyRoomForType(existingRooms, typeName);
-      setForm(draft);
-      setAmenitiesText(draft.amenities.join(", "));
+      return;
     }
-  }, [open, room, isNew, existingRooms, preferredType, typeOptions.join("|")]);
+    if (isNew) {
+      const initialMode: AddMode = preferredType ? "type" : "scratch";
+      setAddMode(initialMode);
+      loadDraft(initialMode, preferredType);
+      setFormError("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when dialog opens
+  }, [open, room, isNew, preferredType]);
+
+  function switchMode(mode: AddMode) {
+    setAddMode(mode);
+    loadDraft(mode, preferredType || typeOptions[0]);
+  }
 
   function applyType(nextType: string) {
-    if (!isNew) {
-      setForm((prev) => ({ ...prev, type: nextType as RoomType }));
+    if (!isNew || addMode === "scratch") {
+      setForm((prev) => ({
+        ...prev,
+        type: nextType as RoomType,
+        name:
+          prev.name.trim() ||
+          (nextType.trim() ? `${nextType.trim()} ${prev.number}` : prev.name),
+      }));
       return;
     }
     const draft = emptyRoomForType(existingRooms, nextType);
@@ -70,10 +108,6 @@ export function RoomInventoryModal({
   }
 
   if (!open) return null;
-
-  const ofTypeCount = existingRooms.filter(
-    (item) => item.type.trim().toLowerCase() === form.type.trim().toLowerCase(),
-  ).length;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4">
@@ -91,9 +125,11 @@ export function RoomInventoryModal({
             </h2>
             <p className="mt-1 text-sm text-muted">
               {isNew
-                ? form.type
-                  ? `${form.type} already has ${ofTypeCount} room${ofTypeCount === 1 ? "" : "s"} — this adds the next unit (${form.number}).`
-                  : "Create a new bookable room under a room type."
+                ? addMode === "scratch"
+                  ? "Blank room — fill in the details."
+                  : form.type
+                    ? `Next ${form.type} unit (${form.number}).`
+                    : "Create a new bookable room."
                 : "Update this room’s details, rate, and availability status."}
             </p>
           </div>
@@ -110,11 +146,21 @@ export function RoomInventoryModal({
           className="overflow-y-auto px-5 py-4"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!form.type.trim()) {
+              setFormError("Room type is required.");
+              return;
+            }
+            if (!form.name.trim()) {
+              setFormError("Display name is required.");
+              return;
+            }
             setSaving(true);
             setFormError("");
             void Promise.resolve(
               onSave({
                 ...form,
+                type: form.type.trim() as RoomType,
+                name: form.name.trim(),
                 amenities: amenitiesText
                   .split(",")
                   .map((item) => item.trim())
@@ -130,6 +176,24 @@ export function RoomInventoryModal({
               .finally(() => setSaving(false));
           }}
         >
+          {isNew ? (
+            <div className="mb-5">
+              <p className="mb-2 text-sm font-medium text-foreground">Add as</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <ModeOption
+                  selected={addMode === "type"}
+                  title="Existing type"
+                  onClick={() => switchMode("type")}
+                />
+                <ModeOption
+                  selected={addMode === "scratch"}
+                  title="New room"
+                  onClick={() => switchMode("scratch")}
+                />
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Room ID">
               <input
@@ -163,7 +227,11 @@ export function RoomInventoryModal({
                 list="mistnleaf-room-types"
                 value={form.type}
                 onChange={(event) => applyType(event.target.value)}
-                placeholder="e.g. Mist Cottage"
+                placeholder={
+                  addMode === "scratch"
+                    ? "e.g. Canopy Suite or a new type name"
+                    : "e.g. Mist Cottage"
+                }
                 className="field-input h-11"
                 required
               />
@@ -173,8 +241,9 @@ export function RoomInventoryModal({
                 ))}
               </datalist>
               <span className="mt-1 block text-xs text-muted">
-                Select a type to add another room under it (e.g. 4th Mist Cottage). Or
-                type a new name to start a type.
+                {addMode === "scratch"
+                  ? "New or existing type name."
+                  : "Pick a type to copy its details."}
               </span>
             </Field>
             <Field label="Status">
@@ -221,6 +290,7 @@ export function RoomInventoryModal({
                 value={form.beds}
                 onChange={(event) => setForm({ ...form, beds: event.target.value })}
                 className="field-input h-11"
+                placeholder="e.g. King bed"
                 required
               />
             </Field>
@@ -229,11 +299,12 @@ export function RoomInventoryModal({
                 type="number"
                 min={0}
                 step={100}
-                value={form.rate}
+                value={form.rate || ""}
                 onChange={(event) =>
                   setForm({ ...form, rate: Number(event.target.value) || 0 })
                 }
                 className="field-input h-11"
+                placeholder="0"
                 required
               />
             </Field>
@@ -241,11 +312,12 @@ export function RoomInventoryModal({
               <input
                 type="number"
                 min={0}
-                value={form.sizeSqFt}
+                value={form.sizeSqFt || ""}
                 onChange={(event) =>
                   setForm({ ...form, sizeSqFt: Number(event.target.value) || 0 })
                 }
                 className="field-input h-11"
+                placeholder="0"
                 required
               />
             </Field>
@@ -291,6 +363,30 @@ export function RoomInventoryModal({
         </form>
       </div>
     </div>
+  );
+}
+
+function ModeOption({
+  selected,
+  title,
+  onClick,
+}: {
+  selected: boolean;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl border px-4 py-2.5 text-left text-sm font-medium transition ${
+        selected
+          ? "border-brand bg-brand-soft/40 text-foreground ring-2 ring-brand-soft"
+          : "border-border-subtle text-foreground hover:border-border hover:bg-surface-muted/60"
+      }`}
+    >
+      {title}
+    </button>
   );
 }
 

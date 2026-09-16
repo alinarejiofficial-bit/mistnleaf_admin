@@ -445,6 +445,25 @@ export function emptyRoom(list: Room[] = rooms): Room {
   };
 }
 
+/** Blank draft — no type template copied. */
+export function emptyRoomFromScratch(list: Room[]): Room {
+  const { id, number } = createNextRoomId(list);
+  return {
+    id,
+    number,
+    name: "",
+    type: "",
+    floor: 1,
+    capacity: 2,
+    beds: "",
+    rate: 0,
+    sizeSqFt: 0,
+    amenities: [],
+    status: "Available",
+    notes: "",
+  };
+}
+
 /** Draft a new room under a type, copying details from an existing unit when present. */
 export function emptyRoomForType(list: Room[], typeName: string): Room {
   const trimmed = typeName.trim() || "Mist Cottage";
