@@ -321,7 +321,8 @@ export const defaultCmsContent: CmsContent = {
     heroDescription:
       "A quiet forest retreat where mist, leaf, and soft light set the pace.",
     heroMediaType: "image",
-    heroMediaUrl: "",
+    heroMediaUrl:
+      "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2000&q=80",
     heroCtaPrimary: "Book your stay",
     heroCtaSecondary: "Explore rooms",
     featuredRoomIds: ["cms-room-1", "cms-room-2", "cms-room-3"],
@@ -396,7 +397,7 @@ export const defaultCmsContent: CmsContent = {
     title: "Soft light, quiet rooms, forest air",
     content:
       "<p>Mistnleaf sits above the valley where morning fog settles between the trees. We keep the stay intentionally small — thoughtful rooms, seasonal dining, and hospitality that feels personal.</p>",
-    imageUrl: "",
+    imageUrl: "/images/about-lodge.png",
     ctaLabel: "Read our story",
     pageEyebrow: "Our story",
     lead: "A small retreat above the Munnar valley — shaped by mist, leaf, and the wish for unhurried days.",
@@ -404,7 +405,7 @@ export const defaultCmsContent: CmsContent = {
     storyTitle: "Rebuilt slowly for quieter stays",
     storyHtml:
       "<p>Mistnleaf began as a family lodge nestled in the hills of Munnar. We rebuilt it slowly — fewer rooms, better light, and hospitality that feels personal rather than performative.</p><p>Today we welcome guests who want quiet mornings, forest walks, and meals drawn from local farms and tea estates. Everything here is intentionally small so attention can stay close.</p><p>Whether you stay one night or a week, our aim is simple: give you space to breathe between the mist and the leaves.</p>",
-    storyImageUrl: "",
+    storyImageUrl: "/images/dawn-forest-walk.png",
     pillarsEyebrow: "How we host",
     pillarsTitle: "What we keep close",
     pillars: [
@@ -429,9 +430,22 @@ export const defaultCmsContent: CmsContent = {
     atmosphereLead:
       "Lodge mornings, tea-hill afternoons, and evenings when the valley softens into fog.",
     mosaic: [
-      { id: "about-mosaic-1", imageUrl: "", caption: "Tea hills beyond the lodge" },
-      { id: "about-mosaic-2", imageUrl: "", caption: "Canopy light indoors" },
-      { id: "about-mosaic-3", imageUrl: "", caption: "Valley mist at dusk" },
+      {
+        id: "about-mosaic-1",
+        imageUrl: "/images/tea-estate-afternoon.png",
+        caption: "Tea hills beyond the lodge",
+      },
+      {
+        id: "about-mosaic-2",
+        imageUrl: "/images/leaf-room.png",
+        caption: "Canopy light indoors",
+      },
+      {
+        id: "about-mosaic-3",
+        imageUrl:
+          "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2000&q=80",
+        caption: "Valley mist at dusk",
+      },
     ],
     placeEyebrow: "Find us",
     placeTitle: "Above the valley in Munnar",
@@ -439,7 +453,7 @@ export const defaultCmsContent: CmsContent = {
     placeMeta: "Front desk · 8:00 AM – 10:00 PM",
     placeCtaLabel: "Book your stay",
     placeDirectionsLabel: "Get directions",
-    placeImageUrl: "",
+    placeImageUrl: "/images/mist-cottage.png",
     status: "Published",
     updatedAt: today,
   },
@@ -451,7 +465,11 @@ export const defaultCmsContent: CmsContent = {
       description:
         "<p>Elevated suite with lounge seating, canopy views, and unhurried mornings.</p>",
       priceFrom: 9800,
-      images: [],
+      images: [
+        "/images/canopy-suite.png",
+        "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80",
+      ],
       amenities: ["Balcony", "Forest view", "King bed", "Mini bar"],
       capacity: 2,
       status: "Published",
@@ -464,7 +482,11 @@ export const defaultCmsContent: CmsContent = {
       description:
         "<p>Private cottage with garden path access and fireplace evenings.</p>",
       priceFrom: 8500,
-      images: [],
+      images: [
+        "/images/mist-cottage.png",
+        "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=1200&q=80",
+      ],
       amenities: ["Fireplace", "Garden access", "Queen bed"],
       capacity: 2,
       status: "Published",
@@ -477,7 +499,11 @@ export const defaultCmsContent: CmsContent = {
       description:
         "<p>Compact lodge room designed for rest between forest walks.</p>",
       priceFrom: 6200,
-      images: [],
+      images: [
+        "/images/leaf-room.png",
+        "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?auto=format&fit=crop&w=1200&q=80",
+      ],
       amenities: ["Ensuite", "Work desk", "Tea service"],
       capacity: 2,
       status: "Published",
@@ -489,7 +515,8 @@ export const defaultCmsContent: CmsContent = {
       id: "amen-1",
       title: "Mist Spa",
       description: "Treatments using local botanicals in a quiet treatment room.",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1200&q=80",
       sortOrder: 0,
       status: "Published",
     },
@@ -497,7 +524,8 @@ export const defaultCmsContent: CmsContent = {
       id: "amen-2",
       title: "Library Lounge",
       description: "Deep chairs, travel writing, and board games by the window.",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=80",
       sortOrder: 1,
       status: "Published",
     },
@@ -505,7 +533,8 @@ export const defaultCmsContent: CmsContent = {
       id: "amen-3",
       title: "Forest Pool",
       description: "A heated outdoor pool edged by ferns and stone.",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1200&q=80",
       sortOrder: 2,
       status: "Published",
     },
@@ -513,7 +542,8 @@ export const defaultCmsContent: CmsContent = {
       id: "amen-4",
       title: "Yoga Deck",
       description: "Morning sessions open to the canopy and cool air.",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80",
       sortOrder: 3,
       status: "Published",
     },
@@ -521,7 +551,8 @@ export const defaultCmsContent: CmsContent = {
       id: "amen-5",
       title: "Work Nook",
       description: "Reliable wifi and a calm desk space when you need it.",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?auto=format&fit=crop&w=1200&q=80",
       sortOrder: 4,
       status: "Published",
     },
@@ -529,7 +560,8 @@ export const defaultCmsContent: CmsContent = {
       id: "amen-6",
       title: "Garden Paths",
       description: "Self-guided trails through moss, bamboo, and wildflowers.",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1400&q=80",
       sortOrder: 5,
       status: "Published",
     },
@@ -541,7 +573,7 @@ export const defaultCmsContent: CmsContent = {
       description:
         "A guided walk through misted trails with a naturalist — birdsong, soft light, and slow conversation.",
       duration: "90 minutes",
-      imageUrl: "",
+      imageUrl: "/images/dawn-forest-walk.png",
       sortOrder: 0,
       status: "Published",
     },
@@ -551,7 +583,7 @@ export const defaultCmsContent: CmsContent = {
       description:
         "Visit a nearby estate, learn the leaf-to-cup journey, and finish with a tasting on the veranda.",
       duration: "Half day",
-      imageUrl: "",
+      imageUrl: "/images/tea-estate-afternoon.png",
       sortOrder: 1,
       status: "Published",
     },
@@ -561,7 +593,7 @@ export const defaultCmsContent: CmsContent = {
       description:
         "Seasonal evenings by the hearth with local stories, warm drinks, and unhurried company.",
       duration: "Evenings",
-      imageUrl: "",
+      imageUrl: "/images/fireside-story-hour.png",
       sortOrder: 2,
       status: "Published",
     },
@@ -571,7 +603,7 @@ export const defaultCmsContent: CmsContent = {
       description:
         "Press leaves, mix simple herbal infusions, and take home a small keepsake from the grounds.",
       duration: "2 hours",
-      imageUrl: "",
+      imageUrl: "/images/botanical-workshop.png",
       sortOrder: 3,
       status: "Published",
     },
@@ -587,7 +619,8 @@ export const defaultCmsContent: CmsContent = {
       categoryId: "gal-cat-1",
       title: "Morning mist over the valley",
       caption: "View from the main terrace at sunrise",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2000&q=80",
       sortOrder: 0,
       status: "Published",
     },
@@ -596,7 +629,8 @@ export const defaultCmsContent: CmsContent = {
       categoryId: "gal-cat-1",
       title: "Infinity pool deck",
       caption: "Heated pool surrounded by native planting",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1200&q=80",
       sortOrder: 1,
       status: "Published",
     },
@@ -605,7 +639,7 @@ export const defaultCmsContent: CmsContent = {
       categoryId: "gal-cat-2",
       title: "Leaf Suite living area",
       caption: "Warm timber finishes and leafy outlook",
-      imageUrl: "",
+      imageUrl: "/images/leaf-room.png",
       sortOrder: 0,
       status: "Published",
     },
@@ -614,7 +648,8 @@ export const defaultCmsContent: CmsContent = {
       categoryId: "gal-cat-3",
       title: "Open-air dining pavilion",
       caption: "Evening service under lantern light",
-      imageUrl: "",
+      imageUrl:
+        "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1600&q=80",
       sortOrder: 0,
       status: "Draft",
     },

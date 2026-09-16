@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { GripVertical, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { createId, useCms } from "@/components/cms/CmsProvider";
 import { OfferEditModal } from "@/components/cms/OfferEditModal";
+import { resolveCmsImageUrl } from "@/lib/cms-image";
 import {
   ConfirmDialog,
   CmsModal,
@@ -183,7 +184,11 @@ export function GallerySection({ onPreview }: { onPreview: PreviewHandler }) {
               <div className="relative aspect-[4/3] bg-gradient-to-br from-brand-soft to-accent-soft">
                 {img.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={img.imageUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={resolveCmsImageUrl(img.imageUrl)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 ) : null}
                 <span className="absolute top-2 left-2 rounded-lg bg-foreground/60 p-1.5 text-white">
                   <GripVertical className="h-4 w-4" />

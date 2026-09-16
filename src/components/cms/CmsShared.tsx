@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { canEditCmsContent } from "@/lib/cms-api-auth";
 import { uploadCmsMediaFile } from "@/lib/cms-api-client";
+import { resolveCmsImageUrl } from "@/lib/cms-image";
 import {
   AlertTriangle,
   Bold,
@@ -509,7 +510,11 @@ export function ImageUploadField({
         {value ? (
           <div className="relative mb-3 overflow-hidden rounded-xl border border-border-subtle">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="" className="h-40 w-full object-cover" />
+            <img
+              src={resolveCmsImageUrl(value)}
+              alt=""
+              className="h-40 w-full object-cover"
+            />
             <button
               type="button"
               onClick={() => onChange("")}

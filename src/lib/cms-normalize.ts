@@ -35,6 +35,27 @@ function normalizeOffer(offer: CmsWebsiteOffer, index: number): CmsWebsiteOffer 
   };
 }
 
+function fillBlank<T>(value: T | null | undefined, fallback: T): T {
+  if (value == null) return fallback;
+  if (typeof value === "string" && !value.trim()) return fallback;
+  if (Array.isArray(value) && value.length === 0) return fallback;
+  return value;
+}
+
+function fillItemImages<T extends { id: string; imageUrl?: string }>(
+  items: T[],
+  defaults: T[],
+): T[] {
+  const byId = Object.fromEntries(defaults.map((item) => [item.id, item]));
+  return items.map((item, index) => {
+    const base = byId[item.id] ?? defaults[index];
+    return {
+      ...item,
+      imageUrl: fillBlank(item.imageUrl, base?.imageUrl ?? ""),
+    };
+  });
+}
+
 export function normalizeCmsContent(
   raw: Partial<CmsContent> & { homepage?: LegacyHomepage },
 ): CmsContent {
@@ -53,6 +74,10 @@ export function normalizeCmsContent(
       legacyHomepage?.heroEyebrow ??
       legacyHomepage?.introductionTitle ??
       defaultCmsContent.homepage.heroEyebrow,
+    heroMediaUrl: fillBlank(
+      legacyHomepage?.heroMediaUrl,
+      defaultCmsContent.homepage.heroMediaUrl,
+    ),
     heroCtaPrimary:
       legacyHomepage?.heroCtaPrimary ?? defaultCmsContent.homepage.heroCtaPrimary,
     heroCtaSecondary:
@@ -131,11 +156,18 @@ export function normalizeCmsContent(
     },
   };
 
-  const rooms = (raw.rooms ?? defaultCmsContent.rooms).map((room) => ({
-    ...room,
-    tagline: room.tagline ?? "",
-    priceFrom: room.priceFrom ?? 0,
-  }));
+  const defaultRoomsById = Object.fromEntries(
+    defaultCmsContent.rooms.map((room) => [room.id, room]),
+  );
+  const rooms = (raw.rooms ?? defaultCmsContent.rooms).map((room, index) => {
+    const base = defaultRoomsById[room.id] ?? defaultCmsContent.rooms[index];
+    return {
+      ...room,
+      tagline: room.tagline ?? "",
+      priceFrom: room.priceFrom ?? 0,
+      images: fillBlank(room.images, base?.images ?? []),
+    };
+  });
 
   const offers = (raw.offers ?? defaultCmsContent.offers).map((offer, index) =>
     normalizeOffer(offer, index),
@@ -158,10 +190,16 @@ export function normalizeCmsContent(
     homepage,
     about: normalizeAbout(raw.about),
     rooms,
-    amenities: raw.amenities ?? defaultCmsContent.amenities,
-    experiences: migratedExperiences,
+    amenities: fillItemImages(
+      raw.amenities ?? defaultCmsContent.amenities,
+      defaultCmsContent.amenities,
+    ),
+    experiences: fillItemImages(migratedExperiences, defaultCmsContent.experiences),
     galleryCategories: raw.galleryCategories ?? defaultCmsContent.galleryCategories,
-    galleryImages: raw.galleryImages ?? defaultCmsContent.galleryImages,
+    galleryImages: fillItemImages(
+      raw.galleryImages ?? defaultCmsContent.galleryImages,
+      defaultCmsContent.galleryImages,
+    ),
     offersSection,
     offers,
     testimonials,
@@ -186,21 +224,26 @@ function normalizeAbout(raw: Partial<CmsContent["about"]> | undefined): CmsConte
       : defaults.pillars;
   const mosaic =
     raw?.mosaic && raw.mosaic.length > 0
-      ? raw.mosaic.map((item, index) => ({
-          ...defaults.mosaic[index % defaults.mosaic.length],
-          ...item,
-          id: item.id || `about-mosaic-${index + 1}`,
-        }))
+      ? raw.mosaic.map((item, index) => {
+          const base = defaults.mosaic[index % defaults.mosaic.length];
+          return {
+            ...base,
+            ...item,
+            id: item.id || `about-mosaic-${index + 1}`,
+            imageUrl: fillBlank(item.imageUrl, base?.imageUrl ?? ""),
+          };
+        })
       : defaults.mosaic;
 
   return {
     ...merged,
+    imageUrl: fillBlank(raw?.imageUrl, defaults.imageUrl),
     pageEyebrow: raw?.pageEyebrow ?? defaults.pageEyebrow,
     lead: raw?.lead ?? defaults.lead,
     storyEyebrow: raw?.storyEyebrow ?? defaults.storyEyebrow,
     storyTitle: raw?.storyTitle ?? defaults.storyTitle,
     storyHtml: raw?.storyHtml ?? defaults.storyHtml,
-    storyImageUrl: raw?.storyImageUrl ?? defaults.storyImageUrl,
+    storyImageUrl: fillBlank(raw?.storyImageUrl, defaults.storyImageUrl),
     pillarsEyebrow: raw?.pillarsEyebrow ?? defaults.pillarsEyebrow,
     pillarsTitle: raw?.pillarsTitle ?? defaults.pillarsTitle,
     pillars,
@@ -214,7 +257,7 @@ function normalizeAbout(raw: Partial<CmsContent["about"]> | undefined): CmsConte
     placeMeta: raw?.placeMeta ?? defaults.placeMeta,
     placeCtaLabel: raw?.placeCtaLabel ?? defaults.placeCtaLabel,
     placeDirectionsLabel: raw?.placeDirectionsLabel ?? defaults.placeDirectionsLabel,
-    placeImageUrl: raw?.placeImageUrl ?? defaults.placeImageUrl,
+    placeImageUrl: fillBlank(raw?.placeImageUrl, defaults.placeImageUrl),
   };
 }
 

@@ -14,6 +14,7 @@ import {
   ToastPortal,
   useToast,
 } from "@/components/cms/CmsShared";
+import { resolveCmsImageUrl } from "@/lib/cms-image";
 import type {
   CmsGalleryImage,
   CmsHomepage,
@@ -664,7 +665,7 @@ export function HomepageGalleryEditor(_props: { onPreview: PreviewHandler }) {
                         {item.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={item.imageUrl}
+                            src={resolveCmsImageUrl(item.imageUrl)}
                             alt=""
                             className="h-full w-full object-cover"
                           />
