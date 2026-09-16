@@ -245,12 +245,16 @@ export function NewBookingModal({
               <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted">
                 Choose a check-out date after check-in to see available rooms.
               </p>
+            ) : roomsOfType.length === 0 ? (
+              <p className="rounded-xl border border-danger/20 bg-[#f8e9e6]/70 px-3 py-3 text-sm font-medium text-danger">
+                No {form.roomType} rooms in inventory yet. Add units for this
+                type on the Rooms page, then try again.
+              </p>
             ) : availableRooms.length === 0 ? (
-              <p className="rounded-xl border border-danger/20 bg-[#f8e9e6]/70 px-3 py-3 text-sm text-danger">
-                No {form.roomType} rooms are free for these dates
-                {roomsOfType.length
-                  ? ` (${roomsOfType.length} total in inventory).`
-                  : ". Add rooms under this type on the Rooms page."}
+              <p className="rounded-xl border border-danger/20 bg-[#f8e9e6]/70 px-3 py-3 text-sm font-medium text-danger">
+                All {roomsOfType.length} {form.roomType} room
+                {roomsOfType.length === 1 ? " is" : "s are"} booked or blocked
+                for these dates. Try different dates or another room type.
               </p>
             ) : (
               <select
