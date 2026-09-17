@@ -127,23 +127,19 @@ export function CalendarManager() {
         description="Weekly room occupancy — navigate weeks like a booking calendar."
       />
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {legend.map((item) => (
-            <span
-              key={item.key}
-              title={item.hint}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${item.className}`}
-            >
-              <span className="h-2 w-2 rounded-full bg-current opacity-70" />
-              {item.label}
-            </span>
-          ))}
-        </div>
-        <p className="text-xs text-muted">
-          Free = available · Occupied = guest in house · Reserved = upcoming stay · Out of
-          order = maintenance or cleaning
-        </p>
+      <div className="flex flex-wrap gap-2">
+        {legend.map((item) => (
+          <div
+            key={item.key}
+            className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 ${item.className}`}
+          >
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-current opacity-80" />
+            <div className="min-w-0 leading-tight">
+              <p className="text-xs font-semibold">{item.label}</p>
+              <p className="text-[11px] opacity-80">{item.hint}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface shadow-sm">
