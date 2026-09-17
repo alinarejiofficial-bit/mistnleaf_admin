@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CalendarRange, Download, Plus, Search, Users } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { CalendarRange, Download, Plus, Search, Upload, Users } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useOps } from "@/components/ops/OpsProvider";
 import { NewBookingModal } from "@/components/reservations/NewBookingModal";
 import { EditBookingModal } from "@/components/reservations/EditBookingModal";
+import {
+  downloadBookingsCsv,
+  parseBookingsCsv,
+} from "@/lib/booking-csv";
 import {
   formatDisplayDate,
   formatINR,
@@ -57,6 +61,8 @@ export function ReservationsManager() {
       ? `${reservations.length} bookings from the website backend`
       : "No website bookings yet";
   const { showToast, toast } = useFloatingToast();
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [importBusy, setImportBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("All");
   const [source, setSource] = useState<"All" | BookingSource>("All");
@@ -70,6 +76,81 @@ export function ReservationsManager() {
       await saveBooking(id, patch);
     } catch {
       showToast("Could not save booking change to the backend.", "error");
+    }
+  }
+
+  function handleExport() {
+    const rows = filtered.length ? filtered : reservations;
+    if (!rows.length) {
+      showToast("No bookings to export.", "error");
+      return;
+    }
+    downloadBookingsCsv(rows);
+    showToast(`Exported ${rows.length} booking${rows.length === 1 ? "" : "s"}.`);
+  }
+
+  async function handleImportFile(file: File) {
+    setImportBusy(true);
+    try {
+      const text = await file.text();
+      const { rows, errors } = parseBookingsCsv(text);
+      if (!rows.length) {
+        showToast(errors[0] || "No valid bookings found in the CSV.", "error");
+        return;
+      }
+
+      let created = 0;
+      const rowErrors = [...errors];
+      for (const row of rows) {
+        const matchedRoom =
+          (row.room
+            ? rooms.find(
+                (room) =>
+                  room.name.toLowerCase() === row.room.toLowerCase() ||
+                  room.number === row.room ||
+                  room.id === row.room,
+              )
+            : undefined) ??
+          rooms.find(
+            (room) =>
+              room.type.trim().toLowerCase() === row.roomType.trim().toLowerCase(),
+          );
+        try {
+          await createBooking({
+            guest: row.guest,
+            email: row.email,
+            phone: row.phone,
+            roomType: row.roomType || matchedRoom?.type || "",
+            roomId: matchedRoom?.id,
+            roomName: matchedRoom?.name || row.room || undefined,
+            checkIn: row.checkIn,
+            checkOut: row.checkOut,
+            adults: row.adults,
+            children: row.children,
+            source: row.source,
+          });
+          created += 1;
+        } catch (err) {
+          rowErrors.push(
+            `${row.guest}: ${err instanceof Error ? err.message : "Could not create booking."}`,
+          );
+        }
+      }
+
+      if (created > 0) {
+        showToast(
+          `Imported ${created} booking${created === 1 ? "" : "s"}${
+            rowErrors.length ? ` · ${rowErrors.length} skipped` : ""
+          }.`,
+        );
+      } else {
+        showToast(rowErrors[0] || "Import failed.", "error");
+      }
+    } catch {
+      showToast("Could not read that CSV file.", "error");
+    } finally {
+      setImportBusy(false);
+      if (importInputRef.current) importInputRef.current.value = "";
     }
   }
 
@@ -107,10 +188,31 @@ export function ReservationsManager() {
         description={sourceLabel}
         action={
           <div className="flex flex-wrap gap-2">
+            <PermissionGate action="bookings.create">
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleImportFile(file);
+                }}
+              />
+              <button
+                type="button"
+                disabled={importBusy}
+                onClick={() => importInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-surface-muted disabled:opacity-60"
+              >
+                <Upload className="h-4 w-4" />
+                {importBusy ? "Importing…" : "Import"}
+              </button>
+            </PermissionGate>
             <PermissionGate action="bookings.export">
               <button
                 type="button"
-                onClick={() => showToast("Booking export prepared (CSV download).")}
+                onClick={handleExport}
                 className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-surface-muted"
               >
                 <Download className="h-4 w-4" />
