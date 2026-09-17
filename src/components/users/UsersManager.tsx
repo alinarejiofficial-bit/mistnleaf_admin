@@ -79,6 +79,10 @@ export function UsersManager() {
     confirmPassword: "",
   });
 
+  useEffect(() => {
+    setActionError("");
+  }, []);
+
   const selectedRole = useMemo(() => getRole(form.roleId), [form.roleId]);
   const passwordModalUser = users.find((user) => user.id === passwordModalUserId);
   const viewUser = users.find((user) => user.id === viewUserId);
@@ -406,6 +410,7 @@ export function UsersManager() {
                             <button
                               type="button"
                               onClick={() => {
+                                setActionError("");
                                 setStatusUserId(user.id);
                                 setStatusAction(
                                   user.status === "Disabled" ? "Active" : "Disabled",

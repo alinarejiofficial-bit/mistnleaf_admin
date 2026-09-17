@@ -79,28 +79,21 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isApiUserId(id: string) {
-  return UUID_RE.test(id);
-}
-
 async function resolveDirectoryUserId(user: {
   id: string;
   email: string;
-}): Promise<string> {
-  if (isApiUserId(user.id)) return user.id;
-  const rows = await fetchStaffUsers();
-  const match = rows.find(
-    (row) => row.email.trim().toLowerCase() === user.email.trim().toLowerCase(),
-  );
-  if (!match?.id) {
-    throw new Error(
-      "Could not find this user on the server. Refresh the page and try again.",
+}): Promise<string | null> {
+  const emailKey = user.email.trim().toLowerCase();
+  try {
+    const rows = await fetchStaffUsers();
+    const match = rows.find(
+      (row) => row.email.trim().toLowerCase() === emailKey,
     );
+    if (match?.id) return String(match.id);
+  } catch {
+    // Fall through — caller may apply a local-only change.
   }
-  return String(match.id);
+  return null;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -539,11 +532,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (getAccessToken()) {
         try {
           const apiId = await resolveDirectoryUserId(existing);
+          if (!apiId) {
+            // User exists only in the local directory — keep the optimistic status.
+            writeAudit(auditActor, {
+              action:
+                resolvedStatus === "Active" ? "User activated" : "User deactivated",
+              module: "Users",
+              detail: existing.name,
+              previousValue: previousStatus,
+              newValue: resolvedStatus,
+            });
+            return { ok: true };
+          }
           const row = await updateStaffDirectoryUser(apiId, {
             status: resolvedStatus,
-            is_active: resolvedStatus !== "Disabled",
+            is_active: resolvedStatus === "Active",
           });
-          const mapped = mapDirectoryUser(row);
+          const mapped = mapDirectoryUser({
+            ...row,
+            is_active: resolvedStatus === "Active",
+          });
           directoryEpoch.current += 1;
           patchUsers((prev) =>
             prev.map((user) =>
@@ -561,6 +569,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ),
           );
         } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Could not update status.";
+          // Stale id / missing row: keep local status instead of flashing "Not found."
+          if (/not found/i.test(message)) {
+            writeAudit(auditActor, {
+              action:
+                resolvedStatus === "Active" ? "User activated" : "User deactivated",
+              module: "Users",
+              detail: existing.name,
+              previousValue: previousStatus,
+              newValue: resolvedStatus,
+            });
+            return { ok: true };
+          }
           patchUsers((prev) =>
             prev.map((user) =>
               user.id === userId || user.email.trim().toLowerCase() === emailKey
@@ -568,10 +590,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 : user,
             ),
           );
-          return {
-            ok: false,
-            error: error instanceof Error ? error.message : "Could not update status.",
-          };
+          return { ok: false, error: message };
         }
       }
 
