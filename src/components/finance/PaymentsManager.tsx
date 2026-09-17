@@ -39,6 +39,8 @@ export function PaymentsManager() {
   const { payments, recordPayment, bookings, saveBooking } = useOps();
   const items = payments;
   const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [recordOpen, setRecordOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [editForm, setEditForm] = useState({
@@ -51,14 +53,14 @@ export function PaymentsManager() {
   const { showToast, toast } = useFloatingToast();
 
   const filtered = useMemo(() => {
-    if (filter === "Paid") {
-      return items.filter((p) => p.status === "Success");
-    }
-    if (filter === "Pending") {
-      return items.filter((p) => p.status === "Pending");
-    }
-    return items;
-  }, [filter, items]);
+    return items.filter((payment) => {
+      if (filter === "Paid" && payment.status !== "Success") return false;
+      if (filter === "Pending" && payment.status !== "Pending") return false;
+      if (dateFrom && payment.date < dateFrom) return false;
+      if (dateTo && payment.date > dateTo) return false;
+      return true;
+    });
+  }, [filter, dateFrom, dateTo, items]);
 
   const collected = items
     .filter((p) => p.status === "Success")
@@ -119,26 +121,64 @@ export function PaymentsManager() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {(["All", "Paid", "Pending"] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setFilter(item)}
-            className={`rounded-xl px-3 py-2 text-sm font-medium ${
-              filter === item
-                ? "bg-brand text-white"
-                : "border border-border bg-surface hover:bg-surface-muted"
-            }`}
-          >
-            {item}
-          </button>
-        ))}
-        {filter === "Pending" ? (
-          <span className="text-sm text-muted">
-            {formatINR(pendingAmount)} awaiting collection
-          </span>
-        ) : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          {(["All", "Paid", "Pending"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setFilter(item)}
+              className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                filter === item
+                  ? "bg-brand text-white"
+                  : "border border-border bg-surface hover:bg-surface-muted"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+          {filter === "Pending" ? (
+            <span className="text-sm text-muted">
+              {formatINR(pendingAmount)} awaiting collection
+            </span>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-muted">
+            <span className="whitespace-nowrap">From</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(event) => setDateFrom(event.target.value)}
+              aria-label="From date"
+              max={dateTo || undefined}
+              className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-muted">
+            <span className="whitespace-nowrap">To</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(event) => setDateTo(event.target.value)}
+              aria-label="To date"
+              min={dateFrom || undefined}
+              className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
+            />
+          </label>
+          {dateFrom || dateTo ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+              className="rounded-xl border border-border px-3 py-2 text-sm text-muted hover:bg-surface-muted"
+            >
+              Clear dates
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <SectionCard title="Payment ledger" description={`${filtered.length} records`}>
