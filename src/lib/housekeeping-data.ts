@@ -19,18 +19,6 @@ export const housekeepingStaff: HousekeepingStaffMember[] = [
     email: "ravi@mistnleaf.com",
     status: "On duty",
   },
-  {
-    id: "HK-ST-03",
-    name: "Anita D'Souza",
-    email: "anita@mistnleaf.com",
-    status: "On duty",
-  },
-  {
-    id: "HK-ST-04",
-    name: "Priya Nair",
-    email: "priya.hk@mistnleaf.com",
-    status: "Off duty",
-  },
 ];
 
 export function createHousekeepingStaffId(list: HousekeepingStaffMember[]) {
@@ -175,7 +163,7 @@ export const assignedRoomsSeed: AssignedRoom[] = [
     status: "Ready",
     priority: "Low",
     taskType: "Stayover",
-    assignee: "Anita D'Souza",
+    assignee: "Sofia Fernandes",
   },
   {
     id: "AR-09",
