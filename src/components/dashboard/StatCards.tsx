@@ -43,7 +43,7 @@ export function StatCards() {
       value: String(summary.availableRooms),
       icon: BedDouble,
       accent: "bg-[#e8f3ec] text-success",
-      href: "/rooms",
+      href: "/rooms?status=Available",
       action: "rooms.view",
     },
     {
@@ -52,7 +52,7 @@ export function StatCards() {
       value: String(summary.occupiedRooms),
       icon: Users,
       accent: "bg-accent-soft text-[#8a6a2f]",
-      href: "/rooms",
+      href: "/rooms?status=Occupied",
       action: "rooms.view",
     },
     {
@@ -61,8 +61,8 @@ export function StatCards() {
       value: String(summary.reservedRooms),
       icon: ClipboardList,
       accent: "bg-[#e7f0f5] text-info",
-      href: "/calendar",
-      action: "calendar.view",
+      href: "/rooms?status=Reserved",
+      action: "rooms.view",
     },
     {
       key: "check-ins",
@@ -106,7 +106,7 @@ export function StatCards() {
       <div className="mb-3">
         <h2 className="font-display text-xl text-foreground">Dashboard summary</h2>
         <p className="mt-1 text-sm text-muted">
-          Live property, guest, and revenue snapshot — tap a card to open the module
+          Live property, guest, and revenue snapshot — tap a card to open details
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -116,18 +116,21 @@ export function StatCards() {
             <PermissionGate key={card.key} action={card.action}>
               <Link
                 href={card.href}
-                className="animate-fade-up block rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm transition hover:border-brand/25 hover:bg-brand-soft/20"
+                aria-label={`Open ${card.label}`}
+                className="animate-fade-up group block cursor-pointer rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm transition hover:border-brand/30 hover:bg-brand-soft/25 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-mid active:scale-[0.99]"
                 style={{ animationDelay: `${index * 35}ms` }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm text-muted">{card.label}</p>
+                    <p className="text-sm text-muted transition group-hover:text-foreground">
+                      {card.label}
+                    </p>
                     <p className="mt-2 font-display text-3xl tracking-tight text-foreground">
                       {card.value}
                     </p>
                   </div>
                   <span
-                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${card.accent}`}
+                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition group-hover:scale-105 ${card.accent}`}
                   >
                     <Icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
                   </span>

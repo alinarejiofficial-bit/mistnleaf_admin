@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BedDouble,
   CalendarRange,
@@ -45,6 +46,13 @@ const statusFilters: StatusFilter[] = [
   "Maintenance",
 ];
 
+function parseStatusFilter(value: string | null): StatusFilter {
+  if (value && statusFilters.includes(value as StatusFilter)) {
+    return value as StatusFilter;
+  }
+  return "All";
+}
+
 export function RoomsManager() {
   const {
     rooms,
@@ -57,10 +65,30 @@ export function RoomsManager() {
     saveRoomStatus,
     error,
   } = useOps();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const types = roomTypeNames.length ? roomTypeNames : fallbackRoomTypes;
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("All");
+  const [status, setStatus] = useState<StatusFilter>(() =>
+    parseStatusFilter(searchParams.get("status")),
+  );
   const [type, setType] = useState<"All" | RoomType>("All");
+
+  useEffect(() => {
+    setStatus(parseStatusFilter(searchParams.get("status")));
+  }, [searchParams]);
+
+  function setStatusFilter(next: StatusFilter) {
+    setStatus(next);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "All") params.delete("status");
+    else params.set("status", next);
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  }
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [roomModal, setRoomModal] = useState<Room | "new" | null>(null);
   const [statusModalRoom, setStatusModalRoom] = useState<Room | null>(null);
@@ -189,7 +217,7 @@ export function RoomsManager() {
           <button
             key={filter}
             type="button"
-            onClick={() => setStatus(filter)}
+            onClick={() => setStatusFilter(filter)}
             className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
               status === filter
                 ? "bg-brand text-white"
