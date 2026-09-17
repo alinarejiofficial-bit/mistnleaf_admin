@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/PermissionGate";
 import { formatINR, type Payment } from "@/lib/ops-data";
 import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
+import type { PaymentStatus } from "@/lib/reservations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
@@ -17,11 +18,35 @@ const statusStyles = {
   Refunded: "bg-surface-muted text-muted",
 };
 
+const paymentStatuses: Payment["status"][] = [
+  "Success",
+  "Pending",
+  "Failed",
+  "Refunded",
+];
+
+function bookingPaymentStatus(
+  status: Payment["status"],
+  paid: number,
+  total: number,
+): PaymentStatus {
+  if (status === "Refunded") return "Refunded";
+  if (status === "Pending" || status === "Failed") return "Pending";
+  return paid >= total ? "Paid" : "Partial";
+}
+
 export function PaymentsManager() {
-  const { payments, recordPayment, bookings } = useOps();
+  const { payments, recordPayment, bookings, saveBooking } = useOps();
   const items = payments;
   const [filter, setFilter] = useState<"All" | "Online" | "Offline" | "Pending">("All");
   const [recordOpen, setRecordOpen] = useState(false);
+  const [editing, setEditing] = useState<Payment | null>(null);
+  const [editForm, setEditForm] = useState({
+    amount: "",
+    status: "Pending" as Payment["status"],
+  });
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState("");
   const [form, setForm] = useState({ guest: "", amount: "", method: "UPI" as Payment["method"] });
   const { showToast, toast } = useFloatingToast();
 
@@ -39,6 +64,16 @@ export function PaymentsManager() {
 
   const pendingPayments = items.filter((p) => p.status === "Pending");
   const pendingAmount = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
+
+  function openEdit(payment: Payment) {
+    setEditing(payment);
+    setEditForm({
+      amount: String(payment.amount),
+      status: payment.status,
+    });
+    setEditError("");
+    setEditBusy(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -123,6 +158,7 @@ export function PaymentsManager() {
                 <th className="px-5 py-3 font-medium">Amount</th>
                 <th className="px-5 py-3 font-medium">Date</th>
                 <th className="px-5 py-3 font-medium">Status</th>
+                <th className="px-5 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -150,15 +186,134 @@ export function PaymentsManager() {
                       {payment.status}
                     </Badge>
                   </td>
+                  <td className="px-5 py-3.5">
+                    <PermissionGate action="payments.record">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(payment)}
+                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:bg-surface-muted"
+                      >
+                        Edit
+                      </button>
+                    </PermissionGate>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 ? (
-                <EmptyRow colSpan={6} label="No payments found." />
+                <EmptyRow colSpan={7} label="No payments found." />
               ) : null}
             </tbody>
           </table>
         </div>
       </SectionCard>
+
+      {editing ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setEditing(null)}
+            className="absolute inset-0 bg-foreground/40"
+          />
+          <form
+            className="relative z-10 w-full max-w-md space-y-4 rounded-2xl border border-border-subtle bg-surface p-5 shadow-xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const amount = Number(editForm.amount);
+              if (!Number.isFinite(amount) || amount < 0) {
+                setEditError("Enter a valid amount.");
+                return;
+              }
+              const booking = bookings.find(
+                (item) => item.id === editing.reservationId,
+              );
+              if (!booking) {
+                setEditError("No booking found for this payment.");
+                return;
+              }
+              setEditBusy(true);
+              setEditError("");
+              void saveBooking(booking.id, {
+                paidAmount: amount,
+                paymentStatus: bookingPaymentStatus(
+                  editForm.status,
+                  amount,
+                  booking.amount,
+                ),
+              })
+                .then(() => {
+                  showToast("Payment updated.");
+                  setEditing(null);
+                })
+                .catch((err: unknown) => {
+                  setEditError(
+                    err instanceof Error ? err.message : "Could not update payment.",
+                  );
+                })
+                .finally(() => setEditBusy(false));
+            }}
+          >
+            <h3 className="font-display text-xl text-foreground">Edit payment</h3>
+            <p className="text-sm text-muted">
+              {editing.id} · {editing.guest} · {editing.reservationId}
+            </p>
+            {editError ? (
+              <p className="rounded-xl border border-danger/20 bg-[#f8e9e6] px-3 py-2 text-sm text-danger">
+                {editError}
+              </p>
+            ) : null}
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium">Amount (₹)</span>
+              <input
+                type="number"
+                min={0}
+                step={100}
+                value={editForm.amount}
+                onChange={(event) =>
+                  setEditForm((prev) => ({ ...prev, amount: event.target.value }))
+                }
+                className="field-input h-11"
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium">Status</span>
+              <select
+                value={editForm.status}
+                onChange={(event) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    status: event.target.value as Payment["status"],
+                  }))
+                }
+                className="field-input h-11"
+              >
+                {paymentStatuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="rounded-xl border border-border px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={editBusy}
+                className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {editBusy ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
 
       {recordOpen ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
