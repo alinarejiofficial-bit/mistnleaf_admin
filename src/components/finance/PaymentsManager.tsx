@@ -38,7 +38,7 @@ function bookingPaymentStatus(
 export function PaymentsManager() {
   const { payments, recordPayment, bookings, saveBooking } = useOps();
   const items = payments;
-  const [filter, setFilter] = useState<"All" | "Online" | "Offline" | "Pending">("All");
+  const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
   const [recordOpen, setRecordOpen] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [editForm, setEditForm] = useState({
@@ -51,17 +51,20 @@ export function PaymentsManager() {
   const { showToast, toast } = useFloatingToast();
 
   const filtered = useMemo(() => {
+    if (filter === "Paid") {
+      return items.filter((p) => p.status === "Success");
+    }
     if (filter === "Pending") {
       return items.filter((p) => p.status === "Pending");
     }
-    if (filter === "All") return items;
-    return items.filter((p) => p.channel === filter);
+    return items;
   }, [filter, items]);
 
   const collected = items
     .filter((p) => p.status === "Success")
     .reduce((s, p) => s + p.amount, 0);
 
+  const paidPayments = items.filter((p) => p.status === "Success");
   const pendingPayments = items.filter((p) => p.status === "Pending");
   const pendingAmount = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
 
@@ -105,19 +108,10 @@ export function PaymentsManager() {
           </div>
         }
       />
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatPill label="Transactions" value={items.length} />
         <StatPill label="Collected" value={formatINR(collected)} tone="success" />
-        <StatPill
-          label="Online"
-          value={items.filter((p) => p.channel === "Online").length}
-          tone="info"
-        />
-        <StatPill
-          label="Offline"
-          value={items.filter((p) => p.channel === "Offline").length}
-          tone="warning"
-        />
+        <StatPill label="Paid" value={paidPayments.length} tone="success" />
         <StatPill
           label="Pending"
           value={pendingPayments.length}
@@ -126,7 +120,7 @@ export function PaymentsManager() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {(["All", "Online", "Offline", "Pending"] as const).map((item) => (
+        {(["All", "Paid", "Pending"] as const).map((item) => (
           <button
             key={item}
             type="button"
@@ -173,7 +167,6 @@ export function PaymentsManager() {
                   <td className="px-5 py-3.5">{payment.guest}</td>
                   <td className="px-5 py-3.5">
                     <div>{payment.method}</div>
-                    <div className="text-xs text-muted">{payment.channel}</div>
                   </td>
                   <td className="px-5 py-3.5 font-medium">
                     {formatINR(payment.amount)}
@@ -183,7 +176,7 @@ export function PaymentsManager() {
                   </td>
                   <td className="px-5 py-3.5">
                     <Badge className={statusStyles[payment.status]}>
-                      {payment.status}
+                      {payment.status === "Success" ? "Paid" : payment.status}
                     </Badge>
                   </td>
                   <td className="px-5 py-3.5">
@@ -290,7 +283,7 @@ export function PaymentsManager() {
               >
                 {paymentStatuses.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {status === "Success" ? "Paid" : status}
                   </option>
                 ))}
               </select>
