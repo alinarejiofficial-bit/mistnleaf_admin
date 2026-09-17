@@ -120,7 +120,7 @@ type OpsContextValue = {
   saveRoom: (room: Room) => Promise<void>;
   saveRoomStatus: (room: Room) => Promise<void>;
   addRoom: (room: Room) => Promise<void>;
-  saveGuest: (guest: Guest, previous: Guest) => Promise<void>;
+  saveGuest: (guest: Guest, previous: Guest | null) => Promise<void>;
   recordPayment: (bookingId: string, amount?: number) => Promise<void>;
   advanceMaintenance: (id: string) => Promise<void>;
   reportMaintenance: (input: {
@@ -347,13 +347,15 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const saveGuest = useCallback(
-    async (guest: Guest, previous: Guest) => {
+    async (guest: Guest, previous: Guest | null) => {
       const override = guestOverrideFromGuest(guest, previous);
       setGuestOverrides((prev) => {
         const next = upsertGuestOverride(prev, override);
         saveLocalGuestOverrides(next);
         return next;
       });
+
+      if (!previous) return;
 
       const contactChanged =
         guest.name !== previous.name ||

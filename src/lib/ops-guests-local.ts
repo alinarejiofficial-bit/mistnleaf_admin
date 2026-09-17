@@ -74,7 +74,9 @@ export function applyGuestOverrides(
   overrides: GuestOverride[],
 ): Guest[] {
   if (!overrides.length) return guests;
-  return guests.map((guest) => {
+
+  const matched = new Set<string>();
+  const updated = guests.map((guest) => {
     const emailKey = guest.email.trim().toLowerCase();
     const override = overrides.find(
       (item) =>
@@ -82,6 +84,8 @@ export function applyGuestOverrides(
         item.matchEmails.some((email) => email.toLowerCase() === emailKey),
     );
     if (!override) return guest;
+    matched.add(override.id);
+    override.matchEmails.forEach((email) => matched.add(email.toLowerCase()));
     return {
       ...guest,
       id: override.id,
@@ -93,4 +97,43 @@ export function applyGuestOverrides(
       notes: override.notes,
     };
   });
+
+  const extras: Guest[] = overrides
+    .filter((override) => {
+      if (matched.has(override.id)) return false;
+      return !override.matchEmails.some((email) => matched.has(email.toLowerCase()));
+    })
+    .map((override) => ({
+      id: override.id,
+      name: override.name,
+      email: override.email,
+      phone: override.phone,
+      nationality: override.nationality,
+      stays: 0,
+      lastStay: "—",
+      totalSpend: 0,
+      status: override.status,
+      notes: override.notes,
+    }));
+
+  return [...updated, ...extras];
+}
+
+export function createEmptyGuest(existing: Guest[]): Guest {
+  const max = existing.reduce((highest, guest) => {
+    const match = guest.id.match(/^GST-(\d+)$/);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+  const next = String(max + 1).padStart(3, "0");
+  return {
+    id: `GST-${next}`,
+    name: "",
+    email: "",
+    phone: "",
+    nationality: "",
+    stays: 0,
+    lastStay: "—",
+    totalSpend: 0,
+    status: "Active",
+  };
 }

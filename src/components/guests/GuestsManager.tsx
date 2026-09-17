@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/PermissionGate";
 import { GuestEditModal } from "@/components/guests/GuestEditModal";
 import { useOps } from "@/components/ops/OpsProvider";
 import { formatINR, type Guest } from "@/lib/ops-data";
+import { createEmptyGuest } from "@/lib/ops-guests-local";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
@@ -21,6 +22,7 @@ export function GuestsManager() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
+  const [addingGuest, setAddingGuest] = useState<Guest | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -49,7 +51,7 @@ export function GuestsManager() {
           <PermissionGate action="guests.create">
             <button
               type="button"
-              onClick={() => window.alert("New guest form (demo).")}
+              onClick={() => setAddingGuest(createEmptyGuest(guests))}
               className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-hover"
             >
               <Plus className="h-4 w-4" />
@@ -145,6 +147,17 @@ export function GuestsManager() {
         onSave={async (guest) => {
           if (!editingGuest) return;
           await saveGuest(guest, editingGuest);
+          setSelectedId(guest.id);
+        }}
+      />
+
+      <GuestEditModal
+        open={addingGuest !== null}
+        guest={addingGuest}
+        isNew
+        onClose={() => setAddingGuest(null)}
+        onSave={async (guest) => {
+          await saveGuest(guest, null);
           setSelectedId(guest.id);
         }}
       />

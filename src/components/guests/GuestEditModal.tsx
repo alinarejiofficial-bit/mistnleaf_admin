@@ -9,6 +9,7 @@ const guestStatuses: Guest["status"][] = ["Active", "VIP", "Blacklisted"];
 type GuestEditModalProps = {
   open: boolean;
   guest: Guest | null;
+  isNew?: boolean;
   onClose: () => void;
   onSave: (guest: Guest) => void | Promise<void>;
 };
@@ -33,19 +34,40 @@ function formFromGuest(guest: Guest): GuestForm {
   };
 }
 
-export function GuestEditModal({ open, guest, onClose, onSave }: GuestEditModalProps) {
+const emptyForm: GuestForm = {
+  name: "",
+  email: "",
+  phone: "",
+  nationality: "",
+  status: "Active",
+  notes: "",
+};
+
+export function GuestEditModal({
+  open,
+  guest,
+  isNew = false,
+  onClose,
+  onSave,
+}: GuestEditModalProps) {
   const [form, setForm] = useState<GuestForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    if (!open || !guest) return;
-    setForm(formFromGuest(guest));
+    if (!open) return;
+    if (isNew) {
+      setForm(guest ? formFromGuest(guest) : emptyForm);
+    } else if (guest) {
+      setForm(formFromGuest(guest));
+    } else {
+      return;
+    }
     setFormError("");
     setSaving(false);
-  }, [open, guest]);
+  }, [open, guest, isNew]);
 
-  if (!open || !guest || !form) return null;
+  if (!open || !form || (!isNew && !guest)) return null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4">
@@ -58,9 +80,13 @@ export function GuestEditModal({ open, guest, onClose, onSave }: GuestEditModalP
       <div className="relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-border-subtle bg-surface shadow-xl sm:rounded-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-border-subtle px-5 py-4">
           <div>
-            <h2 className="font-display text-xl text-foreground">Edit guest</h2>
+            <h2 className="font-display text-xl text-foreground">
+              {isNew ? "Add guest" : "Edit guest"}
+            </h2>
             <p className="mt-1 text-sm text-muted">
-              {guest.name} · {guest.id}
+              {isNew
+                ? "Create a guest profile for walk-ins and future bookings."
+                : `${guest!.name} · ${guest!.id}`}
             </p>
           </div>
           <button
@@ -85,9 +111,17 @@ export function GuestEditModal({ open, guest, onClose, onSave }: GuestEditModalP
             }
             setSaving(true);
             setFormError("");
+            const base =
+              guest ??
+              ({
+                id: `GST-${Date.now().toString(36).slice(-6).toUpperCase()}`,
+                stays: 0,
+                lastStay: "—",
+                totalSpend: 0,
+              } as Guest);
             void Promise.resolve(
               onSave({
-                ...guest,
+                ...base,
                 name,
                 email,
                 phone,
@@ -188,7 +222,7 @@ export function GuestEditModal({ open, guest, onClose, onSave }: GuestEditModalP
               disabled={saving}
               className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
             >
-              {saving ? "Saving…" : "Save guest"}
+              {saving ? "Saving…" : isNew ? "Add guest" : "Save guest"}
             </button>
           </div>
         </form>
