@@ -405,7 +405,7 @@ function ReservationDetailsPanel({
   onNotify,
 }: {
   reservation: Reservation | null;
-  rooms: { name: string }[];
+  rooms: { id?: string; name: string; number?: string; type?: string }[];
   onUpdate: (id: string, patch: Partial<Reservation>) => void;
   onNotify: (message: string) => void;
 }) {
@@ -511,13 +511,32 @@ function ReservationActions({
   onNotify,
 }: {
   reservation: Reservation;
-  rooms: { name: string }[];
+  rooms: { id?: string; name: string; number?: string; type?: string }[];
   onUpdate: (id: string, patch: Partial<Reservation>) => void;
   onNotify: (message: string) => void;
 }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [roomChoice, setRoomChoice] = useState(reservation.room);
+  const hasRoom = Boolean(reservation.room?.trim());
+  const assignLabel = hasRoom ? "Reassign room" : "Assign room";
+
+  const roomOptions = useMemo(() => {
+    const ofType = rooms.filter(
+      (room) =>
+        !reservation.roomType ||
+        room.type?.trim().toLowerCase() ===
+          reservation.roomType.trim().toLowerCase(),
+    );
+    const list = ofType.length ? ofType : rooms;
+    return list.map((room) => ({
+      value: room.name,
+      label: room.number
+        ? `${room.name} · ${room.number}${room.type ? ` · ${room.type}` : ""}`
+        : room.name,
+      type: room.type ?? reservation.roomType,
+    }));
+  }, [rooms, reservation.roomType]);
 
   return (
     <>
@@ -541,7 +560,15 @@ function ReservationActions({
           ) : null}
         </PermissionGate>
         <PermissionGate action="bookings.assignRoom">
-          <ActionButton label="Assign room" onClick={() => setAssignOpen(true)} />
+          {reservation.status !== "Cancelled" ? (
+            <ActionButton
+              label={assignLabel}
+              onClick={() => {
+                setRoomChoice(reservation.room || roomOptions[0]?.value || "");
+                setAssignOpen(true);
+              }}
+            />
+          ) : null}
         </PermissionGate>
         <PermissionGate action="checkin.manage">
           {reservation.status === "Confirmed" ? (
@@ -575,8 +602,11 @@ function ReservationActions({
             className="absolute inset-0 bg-foreground/40"
           />
           <div className="relative z-10 w-full max-w-md rounded-2xl border border-border-subtle bg-surface p-5 shadow-xl">
-            <h3 className="font-display text-xl text-foreground">Assign room</h3>
-            <p className="mt-1 text-sm text-muted">{reservation.guest} · {reservation.id}</p>
+            <h3 className="font-display text-xl text-foreground">{assignLabel}</h3>
+            <p className="mt-1 text-sm text-muted">
+              {reservation.guest} · {reservation.id}
+              {hasRoom ? ` · currently ${reservation.room}` : ""}
+            </p>
             <label className="mt-4 block text-sm">
               <span className="mb-1.5 block font-medium">Room</span>
               <select
@@ -584,9 +614,12 @@ function ReservationActions({
                 onChange={(event) => setRoomChoice(event.target.value)}
                 className="field-input h-11 w-full"
               >
-                {rooms.map((room) => (
-                  <option key={room.name} value={room.name}>
-                    {room.name}
+                {roomOptions.length === 0 ? (
+                  <option value="">No rooms available</option>
+                ) : null}
+                {roomOptions.map((room) => (
+                  <option key={room.value} value={room.value}>
+                    {room.label}
                   </option>
                 ))}
               </select>
@@ -601,14 +634,23 @@ function ReservationActions({
               </button>
               <button
                 type="button"
+                disabled={!roomChoice}
                 onClick={() => {
-                  onUpdate(reservation.id, { room: roomChoice });
-                  onNotify(`Room assigned: ${roomChoice}`);
+                  const selected = roomOptions.find((room) => room.value === roomChoice);
+                  onUpdate(reservation.id, {
+                    room: roomChoice,
+                    ...(selected?.type ? { roomType: selected.type } : {}),
+                  });
+                  onNotify(
+                    hasRoom
+                      ? `Room reassigned: ${roomChoice}`
+                      : `Room assigned: ${roomChoice}`,
+                  );
                   setAssignOpen(false);
                 }}
-                className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white"
+                className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
-                Save assignment
+                {hasRoom ? "Save reassignment" : "Save assignment"}
               </button>
             </div>
           </div>
