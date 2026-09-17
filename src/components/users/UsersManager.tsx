@@ -63,6 +63,7 @@ export function UsersManager() {
   const [viewUserId, setViewUserId] = useState<string | null>(null);
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [statusUserId, setStatusUserId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [passwordModalUserId, setPasswordModalUserId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -80,6 +81,7 @@ export function UsersManager() {
   const viewUser = users.find((user) => user.id === viewUserId);
   const editUser = users.find((user) => user.id === editUserId);
   const deleteTarget = users.find((user) => user.id === deleteUserId);
+  const statusTarget = users.find((user) => user.id === statusUserId);
   const [editForm, setEditForm] = useState<{
     name: string;
     email: string;
@@ -397,11 +399,7 @@ export function UsersManager() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                void toggleUserStatus(user.id).then((result) => {
-                                  setActionError(result.ok ? "" : result.error);
-                                });
-                              }}
+                              onClick={() => setStatusUserId(user.id)}
                               disabled={!canDisableUser}
                               className="text-sm font-medium text-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -795,6 +793,37 @@ export function UsersManager() {
           </form>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(statusTarget)}
+        title={
+          statusTarget?.status === "Disabled" ? "Enable user?" : "Disable user?"
+        }
+        description={
+          statusTarget
+            ? statusTarget.status === "Disabled"
+              ? `Are you sure you want to enable ${statusTarget.name}? They will be able to sign in again.`
+              : `Are you sure you want to disable ${statusTarget.name}? They will not be able to sign in until enabled again.`
+            : ""
+        }
+        confirmLabel={statusTarget?.status === "Disabled" ? "Enable" : "Disable"}
+        danger={statusTarget?.status !== "Disabled"}
+        loading={saving}
+        onCancel={() => setStatusUserId(null)}
+        onConfirm={() => {
+          if (!statusTarget) return;
+          setSaving(true);
+          void toggleUserStatus(statusTarget.id).then((result) => {
+            setSaving(false);
+            if (!result.ok) {
+              setActionError(result.error);
+              return;
+            }
+            setActionError("");
+            setStatusUserId(null);
+          });
+        }}
+      />
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
