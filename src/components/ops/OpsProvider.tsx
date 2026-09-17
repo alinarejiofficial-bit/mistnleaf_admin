@@ -239,6 +239,14 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       paid_amount: patch.paidAmount,
       notes: patch.notes,
       room_unit: roomMatch?.id,
+      guest: patch.guest,
+      email: patch.email,
+      phone: patch.phone,
+      checkIn: patch.checkIn,
+      checkOut: patch.checkOut,
+      adults: patch.adults,
+      children: patch.children,
+      source: patch.source,
     });
     await refresh();
   }, [refresh, staffRooms]);

@@ -300,12 +300,19 @@ export async function updateStaffBooking(
   patch: {
     status?: string;
     payment_status?: string;
+    paymentStatus?: string;
     paid_amount?: number;
+    paidAmount?: number;
     notes?: string;
     room_unit?: string;
     guest?: string;
     email?: string;
     phone?: string;
+    checkIn?: string;
+    checkOut?: string;
+    adults?: number;
+    children?: number;
+    source?: string;
   },
 ): Promise<StaffReservation> {
   return staffFetch<StaffReservation>(`/api/staff/bookings/${id}/`, {

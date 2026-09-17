@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/PermissionGate";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useOps } from "@/components/ops/OpsProvider";
 import { NewBookingModal } from "@/components/reservations/NewBookingModal";
+import { EditBookingModal } from "@/components/reservations/EditBookingModal";
 import {
   formatDisplayDate,
   formatINR,
@@ -406,7 +407,7 @@ function ReservationDetailsPanel({
 }: {
   reservation: Reservation | null;
   rooms: { id?: string; name: string; number?: string; type?: string }[];
-  onUpdate: (id: string, patch: Partial<Reservation>) => void;
+  onUpdate: (id: string, patch: Partial<Reservation>) => void | Promise<void>;
   onNotify: (message: string) => void;
 }) {
   if (!reservation) {
@@ -512,11 +513,12 @@ function ReservationActions({
 }: {
   reservation: Reservation;
   rooms: { id?: string; name: string; number?: string; type?: string }[];
-  onUpdate: (id: string, patch: Partial<Reservation>) => void;
+  onUpdate: (id: string, patch: Partial<Reservation>) => void | Promise<void>;
   onNotify: (message: string) => void;
 }) {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [roomChoice, setRoomChoice] = useState(reservation.room);
   const hasRoom = Boolean(reservation.room?.trim());
   const assignLabel = hasRoom ? "Reassign room" : "Assign room";
@@ -542,10 +544,9 @@ function ReservationActions({
     <>
       <div className="mt-5 flex flex-wrap gap-2 border-t border-border-subtle pt-4">
         <PermissionGate action="bookings.edit">
-          <ActionButton
-            label="Edit booking"
-            onClick={() => onNotify("Booking details updated in the reservation panel.")}
-          />
+          {reservation.status !== "Cancelled" ? (
+            <ActionButton label="Edit booking" onClick={() => setEditOpen(true)} />
+          ) : null}
         </PermissionGate>
         <PermissionGate action="bookings.confirm">
           {reservation.status === "Pending" ? (
@@ -553,7 +554,7 @@ function ReservationActions({
               label="Confirm"
               primary
               onClick={() => {
-                onUpdate(reservation.id, { status: "Confirmed" });
+                void onUpdate(reservation.id, { status: "Confirmed" });
                 onNotify("Booking confirmed.");
               }}
             />
@@ -576,7 +577,7 @@ function ReservationActions({
               label="Check in"
               primary
               onClick={() => {
-                onUpdate(reservation.id, { status: "Checked-in" });
+                void onUpdate(reservation.id, { status: "Checked-in" });
                 onNotify("Guest checked in.");
               }}
             />
@@ -592,6 +593,16 @@ function ReservationActions({
           ) : null}
         </PermissionGate>
       </div>
+
+      <EditBookingModal
+        open={editOpen}
+        reservation={reservation}
+        onClose={() => setEditOpen(false)}
+        onSave={async (patch) => {
+          await onUpdate(reservation.id, patch);
+          onNotify("Booking updated.");
+        }}
+      />
 
       {assignOpen ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -637,7 +648,7 @@ function ReservationActions({
                 disabled={!roomChoice}
                 onClick={() => {
                   const selected = roomOptions.find((room) => room.value === roomChoice);
-                  onUpdate(reservation.id, {
+                  void onUpdate(reservation.id, {
                     room: roomChoice,
                     ...(selected?.type ? { roomType: selected.type } : {}),
                   });
@@ -666,7 +677,7 @@ function ReservationActions({
         onCancel={() => setConfirmCancel(false)}
         onConfirm={() => {
           setConfirmCancel(false);
-          onUpdate(reservation.id, { status: "Cancelled" });
+          void onUpdate(reservation.id, { status: "Cancelled" });
           onNotify("Booking cancelled.");
         }}
       />
