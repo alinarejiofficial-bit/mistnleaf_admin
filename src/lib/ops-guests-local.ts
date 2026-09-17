@@ -11,6 +11,8 @@ export type GuestOverride = {
   phone: string;
   nationality: string;
   status: Guest["status"];
+  preferredRoomId?: string;
+  preferredRoom?: string;
   notes?: string;
 };
 
@@ -50,6 +52,8 @@ export function guestOverrideFromGuest(
     phone: guest.phone.trim(),
     nationality: guest.nationality.trim(),
     status: guest.status,
+    preferredRoomId: guest.preferredRoomId?.trim() || undefined,
+    preferredRoom: guest.preferredRoom?.trim() || undefined,
     notes: guest.notes?.trim() || undefined,
   };
 }

@@ -14,6 +14,10 @@ export type Guest = {
   lastStay: string;
   totalSpend: number;
   status: "Active" | "VIP" | "Blacklisted";
+  /** Preferred / selected room unit id from inventory. */
+  preferredRoomId?: string;
+  /** Display label for the selected room. */
+  preferredRoom?: string;
   notes?: string;
 };
 
