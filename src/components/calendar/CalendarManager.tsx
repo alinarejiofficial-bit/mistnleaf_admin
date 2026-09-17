@@ -16,16 +16,36 @@ const cellStyles = {
 
 const labels = {
   free: "Free",
-  occupied: "Occ",
-  reserved: "Res",
-  blocked: "OOO",
+  occupied: "Occupied",
+  reserved: "Reserved",
+  blocked: "Out of order",
 };
 
 const legend = [
-  { key: "free", label: "Free", className: cellStyles.free },
-  { key: "occupied", label: "Occupied", className: cellStyles.occupied },
-  { key: "reserved", label: "Reserved", className: cellStyles.reserved },
-  { key: "blocked", label: "Out of order", className: cellStyles.blocked },
+  {
+    key: "free",
+    label: "Free",
+    hint: "Available to book",
+    className: cellStyles.free,
+  },
+  {
+    key: "occupied",
+    label: "Occupied",
+    hint: "Guest checked in",
+    className: cellStyles.occupied,
+  },
+  {
+    key: "reserved",
+    label: "Reserved",
+    hint: "Booking confirmed",
+    className: cellStyles.reserved,
+  },
+  {
+    key: "blocked",
+    label: "Out of order",
+    hint: "Maintenance or cleaning",
+    className: cellStyles.blocked,
+  },
 ] as const;
 
 type RoomFilter = "All" | string;
@@ -107,16 +127,23 @@ export function CalendarManager() {
         description="Weekly room occupancy — navigate weeks like a booking calendar."
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {legend.map((item) => (
-          <span
-            key={item.key}
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${item.className}`}
-          >
-            <span className="h-2 w-2 rounded-full bg-current opacity-70" />
-            {item.label}
-          </span>
-        ))}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {legend.map((item) => (
+            <span
+              key={item.key}
+              title={item.hint}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${item.className}`}
+            >
+              <span className="h-2 w-2 rounded-full bg-current opacity-70" />
+              {item.label}
+            </span>
+          ))}
+        </div>
+        <p className="text-xs text-muted">
+          Free = available · Occupied = guest in house · Reserved = upcoming stay · Out of
+          order = maintenance or cleaning
+        </p>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border-subtle bg-surface shadow-sm">
@@ -197,7 +224,7 @@ export function CalendarManager() {
                   return (
                     <th
                       key={iso}
-                      className={`min-w-[88px] border-b border-border-subtle px-2 py-3 text-center ${
+                      className={`min-w-[104px] border-b border-border-subtle px-2 py-3 text-center ${
                         weekend ? "bg-surface-muted/50" : "bg-surface"
                       } ${isToday ? "bg-brand-soft/50" : ""}`}
                     >
@@ -244,10 +271,10 @@ export function CalendarManager() {
                         } ${isToday ? "bg-brand-soft/20" : ""}`}
                       >
                         <div
-                          className={`flex min-h-[52px] flex-col items-center justify-center rounded-xl border px-1.5 py-2 text-center ${cellStyles[cell]}`}
+                          className={`flex min-h-[56px] flex-col items-center justify-center rounded-xl border px-1.5 py-2 text-center ${cellStyles[cell]}`}
                           title={`${row.room} · ${iso ?? ""} · ${labels[cell]}`}
                         >
-                          <span className="text-[11px] font-semibold uppercase tracking-wide">
+                          <span className="text-[11px] font-semibold leading-tight">
                             {labels[cell]}
                           </span>
                         </div>
