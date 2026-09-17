@@ -10,7 +10,7 @@ import { addDaysISO, calendarFromOps } from "@/lib/ops-live";
 const cellStyles = {
   free: "border-[#cfe6d7] bg-[#e8f3ec] text-success",
   occupied: "border-brand/25 bg-brand-soft text-brand",
-  reserved: "border-info/25 bg-[#e7f0f5] text-info",
+  reserved: "border-accent/40 bg-accent-soft text-[#8a6a2f]",
   blocked: "border-danger/25 bg-[#f8e9e6] text-danger",
 };
 
