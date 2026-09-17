@@ -64,6 +64,9 @@ export function UsersManager() {
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [statusUserId, setStatusUserId] = useState<string | null>(null);
+  const [statusAction, setStatusAction] = useState<"Active" | "Disabled" | null>(
+    null,
+  );
   const [open, setOpen] = useState(false);
   const [passwordModalUserId, setPasswordModalUserId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -82,6 +85,7 @@ export function UsersManager() {
   const editUser = users.find((user) => user.id === editUserId);
   const deleteTarget = users.find((user) => user.id === deleteUserId);
   const statusTarget = users.find((user) => user.id === statusUserId);
+  const statusConfirmOpen = Boolean(statusTarget && statusAction);
   const [editForm, setEditForm] = useState<{
     name: string;
     email: string;
@@ -307,7 +311,9 @@ export function UsersManager() {
                 return (
                   <tr
                     key={user.id}
-                    className="border-t border-border-subtle transition hover:bg-surface-muted/40"
+                    className={`border-t border-border-subtle transition hover:bg-surface-muted/40 ${
+                      user.status === "Disabled" ? "opacity-70" : ""
+                    }`}
                   >
                     <td className="px-5 py-4 sm:px-6">
                       <div className="flex items-center gap-3">
@@ -399,11 +405,20 @@ export function UsersManager() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setStatusUserId(user.id)}
+                              onClick={() => {
+                                setStatusUserId(user.id);
+                                setStatusAction(
+                                  user.status === "Disabled" ? "Active" : "Disabled",
+                                );
+                              }}
                               disabled={!canDisableUser}
-                              className="text-sm font-medium text-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                              className={`text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${
+                                user.status === "Disabled"
+                                  ? "text-brand-mid hover:text-brand"
+                                  : "text-muted hover:text-foreground"
+                              }`}
                             >
-                              {user.status === "Disabled" ? "Enable" : "Disable"}
+                              {user.status === "Disabled" ? "Activate" : "Disable"}
                             </button>
                             {canRemoveUser ? (
                               <button
@@ -795,31 +810,32 @@ export function UsersManager() {
       ) : null}
 
       <ConfirmDialog
-        open={Boolean(statusTarget)}
-        title={
-          statusTarget?.status === "Disabled" ? "Enable user?" : "Disable user?"
-        }
+        open={statusConfirmOpen}
+        title={statusAction === "Active" ? "Activate user?" : "Disable user?"}
         description={
-          statusTarget
-            ? statusTarget.status === "Disabled"
-              ? `Are you sure you want to enable ${statusTarget.name}? They will be able to sign in again.`
-              : `Are you sure you want to disable ${statusTarget.name}? They will not be able to sign in until enabled again.`
+          statusTarget && statusAction
+            ? statusAction === "Active"
+              ? `Are you sure you want to activate ${statusTarget.name}? They will be able to sign in again.`
+              : `Are you sure you want to disable ${statusTarget.name}? They will not be able to sign in until activated again.`
             : ""
         }
-        confirmLabel={statusTarget?.status === "Disabled" ? "Enable" : "Disable"}
-        danger={statusTarget?.status !== "Disabled"}
+        confirmLabel={statusAction === "Active" ? "Activate" : "Disable"}
+        danger={statusAction === "Disabled"}
         loading={saving}
         onCancel={() => {
           if (saving) return;
           setStatusUserId(null);
+          setStatusAction(null);
         }}
         onConfirm={() => {
-          if (!statusTarget || saving) return;
+          if (!statusTarget || !statusAction || saving) return;
           const targetId = statusTarget.id;
+          const nextStatus = statusAction;
           setStatusUserId(null);
+          setStatusAction(null);
           setSaving(true);
           setActionError("");
-          void toggleUserStatus(targetId)
+          void toggleUserStatus(targetId, nextStatus)
             .then((result) => {
               if (!result.ok) {
                 setActionError(result.error || "Could not update user status.");

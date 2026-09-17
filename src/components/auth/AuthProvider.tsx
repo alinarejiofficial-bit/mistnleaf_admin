@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -68,17 +69,45 @@ type AuthContextValue = {
     patch: Partial<Pick<StaffUser, "name" | "email" | "phone" | "roleId" | "status">>,
   ) => Promise<MutateResult>;
   updateUserRole: (userId: string, roleId: RoleId) => Promise<MutateResult>;
-  toggleUserStatus: (userId: string) => Promise<MutateResult>;
+  toggleUserStatus: (
+    userId: string,
+    nextStatus?: "Active" | "Disabled",
+  ) => Promise<MutateResult>;
   setUserPassword: (userId: string, password: string) => Promise<MutateResult>;
   deleteUser: (userId: string) => Promise<MutateResult>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isApiUserId(id: string) {
+  return UUID_RE.test(id);
+}
+
+async function resolveDirectoryUserId(user: {
+  id: string;
+  email: string;
+}): Promise<string> {
+  if (isApiUserId(user.id)) return user.id;
+  const rows = await fetchStaffUsers();
+  const match = rows.find(
+    (row) => row.email.trim().toLowerCase() === user.email.trim().toLowerCase(),
+  );
+  if (!match?.id) {
+    throw new Error(
+      "Could not find this user on the server. Refresh the page and try again.",
+    );
+  }
+  return String(match.id);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const directoryEpoch = useRef(0);
 
   const writeAudit = useCallback(
     (
@@ -99,16 +128,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshDirectory = useCallback(async () => {
+    const epoch = ++directoryEpoch.current;
     try {
       const rows = await fetchStaffUsers();
+      if (epoch !== directoryEpoch.current) return;
       if (!rows.length) return;
       setUsers((prev) => {
-        const byEmail = new Map(prev.map((user) => [user.email, user]));
+        if (epoch !== directoryEpoch.current) return prev;
+        const byEmail = new Map(
+          prev.map((user) => [user.email.trim().toLowerCase(), user]),
+        );
         for (const row of rows) {
           const mapped = mapDirectoryUser(row);
-          const existing = byEmail.get(mapped.email);
-          byEmail.set(mapped.email, {
+          const emailKey = mapped.email.trim().toLowerCase();
+          const existing = byEmail.get(emailKey);
+          byEmail.set(emailKey, {
             ...mapped,
+            id: String(mapped.id),
             password: existing?.password ?? "",
           });
         }
@@ -460,7 +496,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const toggleUserStatus = useCallback(
-    async (userId: string): Promise<MutateResult> => {
+    async (
+      userId: string,
+      nextStatus?: "Active" | "Disabled",
+    ): Promise<MutateResult> => {
       const existing = users.find((user) => user.id === userId);
       if (!existing || !currentUser) {
         return { ok: false, error: "User not found." };
@@ -468,9 +507,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!canMutateStaffUser(currentUser, existing)) {
         return { ok: false, error: "You cannot change this account's status." };
       }
-      const nextStatus = existing.status === "Disabled" ? "Active" : "Disabled";
+      const resolvedStatus =
+        nextStatus ?? (existing.status === "Disabled" ? "Active" : "Disabled");
       if (
-        nextStatus === "Disabled" &&
+        resolvedStatus === "Disabled" &&
         existing.roleId === "super_administrator" &&
         isLastActiveSuperAdministrator(users, userId)
       ) {
@@ -479,30 +519,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error: "The last Super Administrator cannot be deactivated.",
         };
       }
+      if (existing.status === resolvedStatus) {
+        return { ok: true };
+      }
 
       const previousStatus = existing.status;
-      // Optimistic UI update so Disable/Enable is visible immediately.
+      const emailKey = existing.email.trim().toLowerCase();
+      // Invalidate in-flight directory refreshes so they cannot flip status back.
+      directoryEpoch.current += 1;
+
       patchUsers((prev) =>
         prev.map((user) =>
-          user.id === userId ? { ...user, status: nextStatus } : user,
+          user.id === userId || user.email.trim().toLowerCase() === emailKey
+            ? { ...user, status: resolvedStatus }
+            : user,
         ),
       );
 
       if (getAccessToken()) {
         try {
-          const row = await updateStaffDirectoryUser(userId, {
-            status: nextStatus,
-            is_active: nextStatus !== "Disabled",
+          const apiId = await resolveDirectoryUserId(existing);
+          const row = await updateStaffDirectoryUser(apiId, {
+            status: resolvedStatus,
+            is_active: resolvedStatus !== "Disabled",
           });
           const mapped = mapDirectoryUser(row);
+          directoryEpoch.current += 1;
           patchUsers((prev) =>
             prev.map((user) =>
-              user.id === userId
+              user.id === userId ||
+              user.id === apiId ||
+              user.email.trim().toLowerCase() === emailKey
                 ? {
                     ...user,
                     ...mapped,
-                    // Trust the requested status even if the payload is incomplete.
-                    status: nextStatus,
+                    id: String(mapped.id || apiId || user.id),
+                    status: resolvedStatus,
                     password: user.password,
                   }
                 : user,
@@ -511,7 +563,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           patchUsers((prev) =>
             prev.map((user) =>
-              user.id === userId ? { ...user, status: previousStatus } : user,
+              user.id === userId || user.email.trim().toLowerCase() === emailKey
+                ? { ...user, status: previousStatus }
+                : user,
             ),
           );
           return {
@@ -522,11 +576,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       writeAudit(auditActor, {
-        action: nextStatus === "Active" ? "User activated" : "User deactivated",
+        action: resolvedStatus === "Active" ? "User activated" : "User deactivated",
         module: "Users",
         detail: existing.name,
         previousValue: previousStatus,
-        newValue: nextStatus,
+        newValue: resolvedStatus,
       });
       return { ok: true };
     },

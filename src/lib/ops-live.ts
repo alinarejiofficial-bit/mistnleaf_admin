@@ -626,15 +626,16 @@ export function mapDirectoryUser(user: StaffDirectoryUser) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+  const isActive = user.is_active !== false;
   return {
-    id: user.id,
+    id: String(user.id),
     name,
     email: user.email,
     phone: user.phone,
     department: user.department,
     initials: initials || "ST",
     roleId: user.role_id,
-    status: (user.is_active ? "Active" : "Disabled") as "Active" | "Invited" | "Disabled",
+    status: (isActive ? "Active" : "Disabled") as "Active" | "Invited" | "Disabled",
     lastActive: user.last_login ? "Recently" : "—",
     createdAt: user.created_at?.slice(0, 10) ?? todayISO(),
     password: "",
