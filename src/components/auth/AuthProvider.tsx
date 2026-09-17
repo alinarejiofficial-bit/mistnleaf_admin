@@ -126,6 +126,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveUsers(next);
   }, []);
 
+  const patchUsers = useCallback((updater: (prev: AuthUser[]) => AuthUser[]) => {
+    setUsers((prev) => {
+      const next = updater(prev);
+      saveUsers(next);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -472,39 +480,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
+      const previousStatus = existing.status;
+      // Optimistic UI update so Disable/Enable is visible immediately.
+      patchUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId ? { ...user, status: nextStatus } : user,
+        ),
+      );
+
       if (getAccessToken()) {
         try {
-          const row = await updateStaffDirectoryUser(userId, { status: nextStatus });
+          const row = await updateStaffDirectoryUser(userId, {
+            status: nextStatus,
+            is_active: nextStatus !== "Disabled",
+          });
           const mapped = mapDirectoryUser(row);
-          persistUsers(
-            users.map((user) =>
-              user.id === userId ? { ...user, ...mapped, password: user.password } : user,
+          patchUsers((prev) =>
+            prev.map((user) =>
+              user.id === userId
+                ? {
+                    ...user,
+                    ...mapped,
+                    // Trust the requested status even if the payload is incomplete.
+                    status: nextStatus,
+                    password: user.password,
+                  }
+                : user,
             ),
           );
         } catch (error) {
+          patchUsers((prev) =>
+            prev.map((user) =>
+              user.id === userId ? { ...user, status: previousStatus } : user,
+            ),
+          );
           return {
             ok: false,
             error: error instanceof Error ? error.message : "Could not update status.",
           };
         }
-      } else {
-        persistUsers(
-          users.map((user) =>
-            user.id === userId ? { ...user, status: nextStatus } : user,
-          ),
-        );
       }
 
       writeAudit(auditActor, {
         action: nextStatus === "Active" ? "User activated" : "User deactivated",
         module: "Users",
         detail: existing.name,
-        previousValue: existing.status,
+        previousValue: previousStatus,
         newValue: nextStatus,
       });
       return { ok: true };
     },
-    [users, persistUsers, writeAudit, auditActor, currentUser],
+    [users, patchUsers, writeAudit, auditActor, currentUser],
   );
 
   const setUserPassword = useCallback(

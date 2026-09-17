@@ -809,19 +809,23 @@ export function UsersManager() {
         confirmLabel={statusTarget?.status === "Disabled" ? "Enable" : "Disable"}
         danger={statusTarget?.status !== "Disabled"}
         loading={saving}
-        onCancel={() => setStatusUserId(null)}
+        onCancel={() => {
+          if (saving) return;
+          setStatusUserId(null);
+        }}
         onConfirm={() => {
-          if (!statusTarget) return;
+          if (!statusTarget || saving) return;
+          const targetId = statusTarget.id;
+          setStatusUserId(null);
           setSaving(true);
-          void toggleUserStatus(statusTarget.id).then((result) => {
-            setSaving(false);
-            if (!result.ok) {
-              setActionError(result.error);
-              return;
-            }
-            setActionError("");
-            setStatusUserId(null);
-          });
+          setActionError("");
+          void toggleUserStatus(targetId)
+            .then((result) => {
+              if (!result.ok) {
+                setActionError(result.error || "Could not update user status.");
+              }
+            })
+            .finally(() => setSaving(false));
         }}
       />
 
