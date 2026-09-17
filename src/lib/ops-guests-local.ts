@@ -138,7 +138,7 @@ export function createEmptyGuest(existing: Guest[]): Guest {
     name: "",
     email: "",
     phone: "",
-    nationality: "",
+    nationality: "India",
     stays: 0,
     lastStay: "—",
     totalSpend: 0,

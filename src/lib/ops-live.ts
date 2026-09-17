@@ -109,24 +109,32 @@ export function guestsFromBookings(bookings: Reservation[]): Guest[] {
     const existing = byEmail.get(key);
     const spend = booking.status === "Cancelled" ? 0 : booking.paidAmount;
     const lastStay = booking.checkOut;
+    const roomLabel = booking.room?.trim() || undefined;
     if (!existing) {
       byEmail.set(key, {
         id: `GST-${key.slice(0, 8)}`,
         name: booking.guest,
         email: booking.email,
         phone: booking.phone,
-        nationality: "",
+        nationality: "India",
         stays: booking.status === "Cancelled" ? 0 : 1,
         lastStay,
         totalSpend: spend,
         status: booking.paidAmount > 40000 ? "VIP" : "Active",
+        preferredRoom: roomLabel,
         notes: booking.notes,
       });
       continue;
     }
     existing.stays += booking.status === "Cancelled" ? 0 : 1;
     existing.totalSpend += spend;
-    if (lastStay > existing.lastStay) existing.lastStay = lastStay;
+    if (lastStay > existing.lastStay) {
+      existing.lastStay = lastStay;
+      if (roomLabel) existing.preferredRoom = roomLabel;
+    } else if (!existing.preferredRoom && roomLabel) {
+      existing.preferredRoom = roomLabel;
+    }
+    if (!existing.nationality) existing.nationality = "India";
     if (existing.totalSpend > 40000) existing.status = "VIP";
   }
   return Array.from(byEmail.values());

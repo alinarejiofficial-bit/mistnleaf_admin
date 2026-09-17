@@ -172,6 +172,21 @@ function GuestPanel({
   const currentBooking = guestBookings.find(
     (r) => r.status === "Checked-in" || r.status === "Confirmed",
   );
+  const latestBooking = [...guestBookings].sort((a, b) =>
+    b.checkOut.localeCompare(a.checkOut),
+  )[0];
+  const roomValue =
+    guest.preferredRoom ||
+    currentBooking?.room ||
+    latestBooking?.room ||
+    "—";
+  const nationalityValue = guest.nationality?.trim() || "India";
+  const lastStayValue =
+    guest.lastStay && guest.lastStay !== "—"
+      ? formatDisplayDate(guest.lastStay)
+      : latestBooking
+        ? formatDisplayDate(latestBooking.checkOut)
+        : "—";
 
   return (
     <section className="rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:p-6">
@@ -183,9 +198,9 @@ function GuestPanel({
       <div className="mt-5 space-y-3 text-sm">
         <Row label="Email" value={guest.email} />
         <Row label="Phone" value={guest.phone} />
-        <Row label="Room" value={guest.preferredRoom || "—"} />
-        <Row label="Nationality" value={guest.nationality || "—"} />
-        <Row label="Last stay" value={guest.lastStay} />
+        <Row label="Room" value={roomValue} />
+        <Row label="Nationality" value={nationalityValue} />
+        <Row label="Last stay" value={lastStayValue} />
         <Row label="Total spend" value={formatINR(guest.totalSpend)} />
         <Row label="Status" value={guest.status} />
         {guest.notes ? <Row label="Notes" value={guest.notes} /> : null}
