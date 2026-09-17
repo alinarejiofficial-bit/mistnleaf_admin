@@ -158,6 +158,10 @@ export type CmsWebsiteOffer = {
   active: boolean;
   status: PublishStatus;
   updatedAt: string;
+  /** all_rooms | selected_rooms | packages */
+  appliesTo: "all_rooms" | "selected_rooms" | "packages";
+  /** Room type names when appliesTo is selected_rooms */
+  roomTypes: string[];
 };
 
 export type CmsOffersSection = {
@@ -682,6 +686,8 @@ export const defaultCmsContent: CmsContent = {
       active: true,
       status: "Published",
       updatedAt: "2026-08-18",
+      appliesTo: "all_rooms",
+      roomTypes: [],
     },
     {
       id: "cms-offer-2",
@@ -701,6 +707,8 @@ export const defaultCmsContent: CmsContent = {
       active: true,
       status: "Published",
       updatedAt: "2026-08-17",
+      appliesTo: "packages",
+      roomTypes: [],
     },
     {
       id: "cms-offer-3",
@@ -720,6 +728,8 @@ export const defaultCmsContent: CmsContent = {
       active: true,
       status: "Published",
       updatedAt: "2026-08-16",
+      appliesTo: "all_rooms",
+      roomTypes: [],
     },
   ],
   testimonials: [

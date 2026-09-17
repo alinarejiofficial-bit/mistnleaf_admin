@@ -3,11 +3,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { addOns as initialAddOns, formatINR, offers as initialOffers, type AddOn, type Offer } from "@/lib/ops-data";
+import { addOns as initialAddOns, formatINR, offers as initialOffers, type AddOn, type Offer, type OfferScope } from "@/lib/ops-data";
 import { offersFromCms, addOnsFromCms } from "@/lib/ops-live";
 import { fetchCmsContentFromApi, saveCmsContentToApi } from "@/lib/cms-api-client";
 import type { CmsContent, CmsExperience, CmsWebsiteOffer } from "@/lib/cms-data";
 import { formatDisplayDate } from "@/lib/data";
+import { roomTypes as defaultRoomTypes } from "@/lib/rooms";
 import { hasPermission } from "@/lib/roles";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
@@ -19,8 +20,15 @@ const offerStyles = {
 };
 
 const offerStatuses: Offer["status"][] = ["Active", "Scheduled", "Expired"];
+const offerScopes: OfferScope[] = ["All rooms", "Selected rooms", "Packages"];
 
 function toCmsOffer(offer: Offer, existing?: CmsWebsiteOffer, sortOrder = 0): CmsWebsiteOffer {
+  const appliesTo =
+    offer.appliesTo === "Selected rooms"
+      ? "selected_rooms"
+      : offer.appliesTo === "Packages"
+        ? "packages"
+        : "all_rooms";
   return {
     id: offer.id,
     title: offer.title,
@@ -39,6 +47,8 @@ function toCmsOffer(offer: Offer, existing?: CmsWebsiteOffer, sortOrder = 0): Cm
     active: offer.status === "Active",
     status: offer.status === "Expired" ? "Draft" : "Published",
     updatedAt: new Date().toISOString().slice(0, 10),
+    appliesTo,
+    roomTypes: offer.appliesTo === "Selected rooms" ? offer.roomTypes : [],
   };
 }
 
@@ -102,6 +112,8 @@ const emptyOfferForm = {
   validTo: "",
   status: "Scheduled" as Offer["status"],
   usage: "0",
+  appliesTo: "All rooms" as OfferScope,
+  roomTypes: [] as string[],
 };
 
 const addOnStyles = {
@@ -158,6 +170,8 @@ export function OffersManager() {
       validTo: offer.validTo,
       status: offer.status,
       usage: String(offer.usage),
+      appliesTo: offer.appliesTo ?? "All rooms",
+      roomTypes: offer.roomTypes ?? [],
     });
     setError("");
   }
@@ -192,6 +206,11 @@ export function OffersManager() {
       return;
     }
 
+    if (form.appliesTo === "Selected rooms" && form.roomTypes.length === 0) {
+      setError("Select at least one room type.");
+      return;
+    }
+
     const duplicate = items.find(
       (offer) =>
         offer.code.toUpperCase() === code &&
@@ -201,6 +220,11 @@ export function OffersManager() {
       setError("Another offer already uses this code.");
       return;
     }
+
+    const scopeFields = {
+      appliesTo: form.appliesTo,
+      roomTypes: form.appliesTo === "Selected rooms" ? form.roomTypes : [],
+    };
 
     const nextItem: Offer = creating
       ? {
@@ -212,6 +236,7 @@ export function OffersManager() {
           validTo: form.validTo,
           status: form.status,
           usage,
+          ...scopeFields,
         }
       : {
           id: editingId ?? "",
@@ -222,6 +247,7 @@ export function OffersManager() {
           validTo: form.validTo,
           status: form.status,
           usage,
+          ...scopeFields,
         };
 
     const next = creating
@@ -274,6 +300,7 @@ export function OffersManager() {
                 <th className="px-5 py-3 font-medium">Offer</th>
                 <th className="px-5 py-3 font-medium">Code</th>
                 <th className="px-5 py-3 font-medium">Discount</th>
+                <th className="px-5 py-3 font-medium">Applies to</th>
                 <th className="px-5 py-3 font-medium">Validity</th>
                 <th className="px-5 py-3 font-medium">Usage</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -288,6 +315,11 @@ export function OffersManager() {
                   <td className="px-5 py-3.5 font-medium">{offer.title}</td>
                   <td className="px-5 py-3.5">{offer.code}</td>
                   <td className="px-5 py-3.5">{offer.discount}</td>
+                  <td className="px-5 py-3.5 text-muted">
+                    {offer.appliesTo === "Selected rooms" && offer.roomTypes?.length
+                      ? offer.roomTypes.join(", ")
+                      : offer.appliesTo || "All rooms"}
+                  </td>
                   <td className="px-5 py-3.5 text-muted">
                     {formatDisplayDate(offer.validFrom)} →{" "}
                     {formatDisplayDate(offer.validTo)}
@@ -408,6 +440,64 @@ export function OffersManager() {
                   className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
                 />
               </label>
+
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-foreground">
+                  Applies to
+                </span>
+                <select
+                  value={form.appliesTo}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      appliesTo: event.target.value as OfferScope,
+                      roomTypes:
+                        event.target.value === "Selected rooms" ? prev.roomTypes : [],
+                    }))
+                  }
+                  className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none transition focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
+                >
+                  {offerScopes.map((scope) => (
+                    <option key={scope} value={scope}>
+                      {scope}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {form.appliesTo === "Selected rooms" ? (
+                <fieldset className="rounded-xl border border-border-subtle px-3 py-3">
+                  <legend className="px-1 text-sm font-medium text-foreground">
+                    Room types
+                  </legend>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {defaultRoomTypes.map((type) => {
+                      const checked = form.roomTypes.includes(type);
+                      return (
+                        <label
+                          key={type}
+                          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-foreground hover:bg-surface-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setForm((prev) => ({
+                                ...prev,
+                                roomTypes: checked
+                                  ? prev.roomTypes.filter((item) => item !== type)
+                                  : [...prev.roomTypes, type],
+                              }))
+                            }
+                            className="h-4 w-4 rounded border-border-subtle text-brand"
+                          />
+                          {type}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">

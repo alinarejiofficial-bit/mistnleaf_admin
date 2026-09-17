@@ -24,6 +24,10 @@ function parseTermsFromDetails(details: string): string[] {
 }
 
 function normalizeOffer(offer: CmsWebsiteOffer, index: number): CmsWebsiteOffer {
+  const appliesTo =
+    offer.appliesTo === "selected_rooms" || offer.appliesTo === "packages"
+      ? offer.appliesTo
+      : "all_rooms";
   return {
     ...offer,
     priceFrom: offer.priceFrom ?? 0,
@@ -32,6 +36,8 @@ function normalizeOffer(offer: CmsWebsiteOffer, index: number): CmsWebsiteOffer 
     bookCtaLabel: offer.bookCtaLabel ?? "Book package →",
     bookCtaHref: offer.bookCtaHref ?? "#contact",
     sortOrder: offer.sortOrder ?? index,
+    appliesTo,
+    roomTypes: Array.isArray(offer.roomTypes) ? offer.roomTypes : [],
   };
 }
 

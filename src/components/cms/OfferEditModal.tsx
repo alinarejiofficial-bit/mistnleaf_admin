@@ -10,6 +10,7 @@ import {
   useToast,
 } from "@/components/cms/CmsShared";
 import type { CmsWebsiteOffer } from "@/lib/cms-data";
+import { roomTypes as defaultRoomTypes } from "@/lib/rooms";
 
 export function emptyOffer(): CmsWebsiteOffer {
   return {
@@ -30,6 +31,8 @@ export function emptyOffer(): CmsWebsiteOffer {
     active: true,
     status: "Published",
     updatedAt: new Date().toISOString().slice(0, 10),
+    appliesTo: "all_rooms",
+    roomTypes: [],
   };
 }
 
@@ -53,7 +56,13 @@ export function OfferEditModal({
   const [form, setForm] = useState<CmsWebsiteOffer>(emptyOffer());
 
   useEffect(() => {
-    if (open && offer) setForm({ ...offer });
+    if (open && offer) {
+      setForm({
+        ...offer,
+        appliesTo: offer.appliesTo ?? "all_rooms",
+        roomTypes: offer.roomTypes ?? [],
+      });
+    }
     if (open && isNew) setForm(emptyOffer());
   }, [open, offer, isNew]);
 
@@ -68,10 +77,15 @@ export function OfferEditModal({
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
+          if (form.appliesTo === "selected_rooms" && !(form.roomTypes ?? []).length) {
+            return;
+          }
           const next: CmsWebsiteOffer = {
             ...form,
             id: isNew ? createId("cms-offer") : form.id,
             updatedAt: new Date().toISOString().slice(0, 10),
+            roomTypes:
+              form.appliesTo === "selected_rooms" ? form.roomTypes ?? [] : [],
           };
           saveOffer(next);
           onSaved?.(next);
@@ -165,6 +179,56 @@ export function OfferEditModal({
             onChange={(validTo) => setForm((prev) => ({ ...prev, validTo }))}
           />
         </div>
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium text-foreground">Applies to</span>
+          <select
+            value={form.appliesTo ?? "all_rooms"}
+            onChange={(event) =>
+              setForm((prev) => ({
+                ...prev,
+                appliesTo: event.target.value as CmsWebsiteOffer["appliesTo"],
+                roomTypes:
+                  event.target.value === "selected_rooms" ? prev.roomTypes : [],
+              }))
+            }
+            className="field-input h-11"
+          >
+            <option value="all_rooms">All rooms</option>
+            <option value="selected_rooms">Selected rooms</option>
+            <option value="packages">Packages</option>
+          </select>
+        </label>
+        {form.appliesTo === "selected_rooms" ? (
+          <fieldset className="rounded-xl border border-border-subtle px-3 py-3">
+            <legend className="px-1 text-sm font-medium text-foreground">Room types</legend>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {defaultRoomTypes.map((type) => {
+                const checked = (form.roomTypes ?? []).includes(type);
+                return (
+                  <label
+                    key={type}
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-foreground hover:bg-surface-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          roomTypes: checked
+                            ? (prev.roomTypes ?? []).filter((item) => item !== type)
+                            : [...(prev.roomTypes ?? []), type],
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-border-subtle text-brand"
+                    />
+                    {type}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ) : null}
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 text-sm">
             <input

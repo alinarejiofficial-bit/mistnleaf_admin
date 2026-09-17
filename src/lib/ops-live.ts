@@ -570,6 +570,12 @@ export function offersFromCms(offers: CmsWebsiteOffer[]): Offer[] {
     if (offer.validFrom && offer.validFrom > today) status = "Scheduled";
     if (offer.validTo && offer.validTo < today) status = "Expired";
     if (!offer.active) status = "Expired";
+    const appliesTo: Offer["appliesTo"] =
+      offer.appliesTo === "selected_rooms"
+        ? "Selected rooms"
+        : offer.appliesTo === "packages"
+          ? "Packages"
+          : "All rooms";
     return {
       id: offer.id,
       title: offer.title,
@@ -579,6 +585,8 @@ export function offersFromCms(offers: CmsWebsiteOffer[]): Offer[] {
       validTo: offer.validTo,
       status,
       usage: 0,
+      appliesTo,
+      roomTypes: Array.isArray(offer.roomTypes) ? offer.roomTypes : [],
     };
   });
 }

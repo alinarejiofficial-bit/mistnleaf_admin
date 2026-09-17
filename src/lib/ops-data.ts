@@ -67,6 +67,8 @@ export type Invoice = {
   status: "Paid" | "Unpaid" | "Overdue" | "Draft";
 };
 
+export type OfferScope = "All rooms" | "Selected rooms" | "Packages";
+
 export type Offer = {
   id: string;
   title: string;
@@ -76,6 +78,10 @@ export type Offer = {
   validTo: string;
   status: "Active" | "Scheduled" | "Expired";
   usage: number;
+  /** Where this offer can be redeemed. */
+  appliesTo: OfferScope;
+  /** Room type names when appliesTo is "Selected rooms". */
+  roomTypes: string[];
 };
 
 export type AddOn = {
@@ -466,6 +472,8 @@ export const offers: Offer[] = [
     validTo: "2026-09-15",
     status: "Active",
     usage: 42,
+    appliesTo: "All rooms",
+    roomTypes: [],
   },
   {
     id: "OFF-02",
@@ -476,6 +484,8 @@ export const offers: Offer[] = [
     validTo: "2026-10-31",
     status: "Active",
     usage: 18,
+    appliesTo: "Selected rooms",
+    roomTypes: ["Leaf Room", "Mist Cottage"],
   },
   {
     id: "OFF-03",
@@ -486,6 +496,8 @@ export const offers: Offer[] = [
     validTo: "2026-12-20",
     status: "Scheduled",
     usage: 0,
+    appliesTo: "Packages",
+    roomTypes: [],
   },
   {
     id: "OFF-04",
@@ -496,6 +508,8 @@ export const offers: Offer[] = [
     validTo: "2026-06-30",
     status: "Expired",
     usage: 96,
+    appliesTo: "All rooms",
+    roomTypes: [],
   },
 ];
 
