@@ -154,6 +154,14 @@ export function RoomInventoryModal({
               setFormError("Display name is required.");
               return;
             }
+            if (!form.floor || form.floor < 1) {
+              setFormError("Floor must be at least 1.");
+              return;
+            }
+            if (!form.capacity || form.capacity < 1) {
+              setFormError("Capacity must be at least 1.");
+              return;
+            }
             setSaving(true);
             setFormError("");
             void Promise.resolve(
@@ -161,6 +169,8 @@ export function RoomInventoryModal({
                 ...form,
                 type: form.type.trim() as RoomType,
                 name: form.name.trim(),
+                floor: Math.max(1, form.floor),
+                capacity: Math.max(1, form.capacity),
                 amenities: amenitiesText
                   .split(",")
                   .map((item) => item.trim())
@@ -265,10 +275,14 @@ export function RoomInventoryModal({
               <input
                 type="number"
                 min={1}
-                value={form.floor}
-                onChange={(event) =>
-                  setForm({ ...form, floor: Number(event.target.value) || 1 })
-                }
+                value={form.floor || ""}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  setForm({
+                    ...form,
+                    floor: raw === "" ? 0 : Number(raw),
+                  });
+                }}
                 className="field-input h-11"
                 required
               />
@@ -277,10 +291,14 @@ export function RoomInventoryModal({
               <input
                 type="number"
                 min={1}
-                value={form.capacity}
-                onChange={(event) =>
-                  setForm({ ...form, capacity: Number(event.target.value) || 1 })
-                }
+                value={form.capacity || ""}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  setForm({
+                    ...form,
+                    capacity: raw === "" ? 0 : Number(raw),
+                  });
+                }}
                 className="field-input h-11"
                 required
               />
