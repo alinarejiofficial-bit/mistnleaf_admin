@@ -56,8 +56,7 @@ export function NewBookingModal({
     roomId: "",
     checkIn: today,
     checkOut: dayAfter(today),
-    adults: "2",
-    children: "0",
+    guests: "2",
     source: "Walk-in" as BookingSource,
   });
 
@@ -140,8 +139,8 @@ export function NewBookingModal({
               roomName: selectedRoom.name,
               checkIn: form.checkIn,
               checkOut: form.checkOut,
-              adults: Number(form.adults) || 1,
-              children: Number(form.children) || 0,
+              adults: Math.max(1, Number(form.guests) || 1),
+              children: 0,
               source: form.source,
             }).finally(() => setBusy(false));
           }}
@@ -276,41 +275,43 @@ export function NewBookingModal({
               </select>
             )}
           </label>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <input
-              type="number"
-              min={1}
-              value={form.adults}
-              onChange={(event) => setForm((prev) => ({ ...prev, adults: event.target.value }))}
-              className="field-input h-11 w-full"
-              aria-label="Adults"
-            />
-            <input
-              type="number"
-              min={0}
-              value={form.children}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, children: event.target.value }))
-              }
-              className="field-input h-11 w-full"
-              aria-label="Children"
-            />
-            <select
-              value={form.source}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  source: event.target.value as BookingSource,
-                }))
-              }
-              className="field-input h-11 w-full"
-            >
-              {bookingSources.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium text-foreground">Guests</span>
+              <input
+                type="number"
+                min={1}
+                value={form.guests}
+                onChange={(event) => {
+                  const raw = event.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    guests: raw === "" ? "" : raw,
+                  }));
+                }}
+                className="field-input h-11 w-full"
+                required
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium text-foreground">Source</span>
+              <select
+                value={form.source}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    source: event.target.value as BookingSource,
+                  }))
+                }
+                className="field-input h-11 w-full"
+              >
+                {bookingSources.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button
