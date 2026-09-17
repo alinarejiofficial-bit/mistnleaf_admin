@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import type { Guest } from "@/lib/ops-data";
+import type { Room } from "@/lib/rooms";
 
 const guestStatuses: Guest["status"][] = ["Active", "VIP", "Blacklisted"];
 
@@ -10,6 +11,7 @@ type GuestEditModalProps = {
   open: boolean;
   guest: Guest | null;
   isNew?: boolean;
+  rooms?: Room[];
   onClose: () => void;
   onSave: (guest: Guest) => void | Promise<void>;
 };
@@ -20,6 +22,7 @@ type GuestForm = {
   phone: string;
   nationality: string;
   status: Guest["status"];
+  preferredRoomId: string;
   notes: string;
 };
 
@@ -30,6 +33,7 @@ function formFromGuest(guest: Guest): GuestForm {
     phone: guest.phone,
     nationality: guest.nationality,
     status: guest.status,
+    preferredRoomId: guest.preferredRoomId ?? "",
     notes: guest.notes ?? "",
   };
 }
@@ -40,6 +44,7 @@ const emptyForm: GuestForm = {
   phone: "",
   nationality: "",
   status: "Active",
+  preferredRoomId: "",
   notes: "",
 };
 
@@ -47,12 +52,21 @@ export function GuestEditModal({
   open,
   guest,
   isNew = false,
+  rooms = [],
   onClose,
   onSave,
 }: GuestEditModalProps) {
   const [form, setForm] = useState<GuestForm | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const roomOptions = useMemo(
+    () =>
+      [...rooms].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true }),
+      ),
+    [rooms],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -84,9 +98,7 @@ export function GuestEditModal({
               {isNew ? "Add guest" : "Edit guest"}
             </h2>
             <p className="mt-1 text-sm text-muted">
-              {isNew
-                ? "Create a guest profile for walk-ins and future bookings."
-                : `${guest!.name} · ${guest!.id}`}
+              {isNew ? "Guest details and room preference." : `${guest!.name} · ${guest!.id}`}
             </p>
           </div>
           <button
@@ -109,6 +121,9 @@ export function GuestEditModal({
               setFormError("Name, email, and phone are required.");
               return;
             }
+            const selectedRoom = roomOptions.find(
+              (room) => room.id === form.preferredRoomId,
+            );
             setSaving(true);
             setFormError("");
             const base =
@@ -127,6 +142,10 @@ export function GuestEditModal({
                 phone,
                 nationality: form.nationality.trim(),
                 status: form.status,
+                preferredRoomId: selectedRoom?.id,
+                preferredRoom: selectedRoom
+                  ? `${selectedRoom.name} · ${selectedRoom.number}`
+                  : undefined,
                 notes: form.notes.trim() || undefined,
               }),
             )
@@ -165,6 +184,28 @@ export function GuestEditModal({
                 className="field-input h-11"
                 required
               />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium text-foreground">Room</span>
+              <select
+                value={form.preferredRoomId}
+                onChange={(event) =>
+                  setForm({ ...form, preferredRoomId: event.target.value })
+                }
+                className="field-input h-11"
+              >
+                <option value="">Select a room</option>
+                {roomOptions.map((room) => (
+                  <option key={room.id} value={room.id}>
+                    {room.name} · {room.number} · {room.type}
+                  </option>
+                ))}
+              </select>
+              {roomOptions.length === 0 ? (
+                <span className="mt-1 block text-xs text-muted">
+                  No rooms in inventory yet. Add rooms on the Rooms page.
+                </span>
+              ) : null}
             </label>
             <label className="block text-sm">
               <span className="mb-1.5 block font-medium text-foreground">Nationality</span>

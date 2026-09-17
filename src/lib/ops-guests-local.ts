@@ -98,6 +98,8 @@ export function applyGuestOverrides(
       phone: override.phone,
       nationality: override.nationality,
       status: override.status,
+      preferredRoomId: override.preferredRoomId,
+      preferredRoom: override.preferredRoom,
       notes: override.notes,
     };
   });
@@ -117,6 +119,8 @@ export function applyGuestOverrides(
       lastStay: "—",
       totalSpend: 0,
       status: override.status,
+      preferredRoomId: override.preferredRoomId,
+      preferredRoom: override.preferredRoom,
       notes: override.notes,
     }));
 

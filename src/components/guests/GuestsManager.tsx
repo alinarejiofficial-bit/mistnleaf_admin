@@ -18,7 +18,7 @@ const statusStyles = {
 };
 
 export function GuestsManager() {
-  const { guests, bookings, payments, saveGuest } = useOps();
+  const { guests, bookings, payments, rooms, saveGuest } = useOps();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
@@ -143,6 +143,7 @@ export function GuestsManager() {
       <GuestEditModal
         open={editingGuest !== null}
         guest={editingGuest}
+        rooms={rooms}
         onClose={() => setEditingGuest(null)}
         onSave={async (guest) => {
           if (!editingGuest) return;
@@ -155,6 +156,7 @@ export function GuestsManager() {
         open={addingGuest !== null}
         guest={addingGuest}
         isNew
+        rooms={rooms}
         onClose={() => setAddingGuest(null)}
         onSave={async (guest) => {
           await saveGuest(guest, null);
@@ -207,6 +209,7 @@ function GuestPanel({
       <div className="mt-5 space-y-3 text-sm">
         <Row label="Email" value={guest.email} />
         <Row label="Phone" value={guest.phone} />
+        <Row label="Room" value={guest.preferredRoom || "—"} />
         <Row label="Nationality" value={guest.nationality || "—"} />
         <Row label="Last stay" value={guest.lastStay} />
         <Row label="Total spend" value={formatINR(guest.totalSpend)} />
