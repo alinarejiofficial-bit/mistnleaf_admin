@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CalendarDays, ChevronDown } from "lucide-react";
 import { useOps } from "@/components/ops/OpsProvider";
 import { formatINR, type RevenuePeriod } from "@/lib/data";
+import { buildRevenueSlice } from "@/lib/ops-live";
 
 const periodOptions: { value: RevenuePeriod; label: string }[] = [
   { value: "today", label: "Today" },
@@ -11,23 +12,53 @@ const periodOptions: { value: RevenuePeriod; label: string }[] = [
   { value: "monthly", label: "This month" },
 ];
 
+/** Keep From ≤ To. If either side crosses the other, snap the edited side. */
+function clampRange(
+  from: string,
+  to: string,
+  edited: "from" | "to",
+): { from: string; to: string } {
+  if (!from || !to) return { from, to };
+  if (from <= to) return { from, to };
+  if (edited === "from") return { from, to: from };
+  return { from: to, to };
+}
+
 export function RevenueOverview() {
-  const { revenue } = useOps();
+  const { revenue, bookings } = useOps();
   const [period, setPeriod] = useState<RevenuePeriod>("monthly");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
-  const data = revenue[period];
+  const hasCustomRange = Boolean(customFrom && customTo && customFrom <= customTo);
+
+  const data = useMemo(() => {
+    if (hasCustomRange) {
+      const slice = buildRevenueSlice(bookings, customFrom, customTo);
+      return {
+        label: `${customFrom} → ${customTo}`,
+        ...slice,
+      };
+    }
+    return revenue[period];
+  }, [bookings, customFrom, customTo, hasCustomRange, period, revenue]);
+
   const roomTypeMax = Math.max(1, ...data.byRoomType.map((item) => item.amount));
   const sourceMax = Math.max(1, ...data.byBookingSource.map((item) => item.amount));
   const paymentTotal = data.onlinePayments + data.offlinePayments || 1;
+  const rangeInvalid = Boolean(customFrom && customTo && customFrom > customTo);
 
-  const periodLabel = useMemo(() => {
-    if (customFrom && customTo) {
-      return `${customFrom} → ${customTo}`;
-    }
-    return data.label;
-  }, [customFrom, customTo, data.label]);
+  function onFromChange(value: string) {
+    const next = clampRange(value, customTo, "from");
+    setCustomFrom(next.from);
+    setCustomTo(next.to);
+  }
+
+  function onToChange(value: string) {
+    const next = clampRange(customFrom, value, "to");
+    setCustomFrom(next.from);
+    setCustomTo(next.to);
+  }
 
   return (
     <section className="animate-fade-up-delay-3 rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:p-6">
@@ -48,7 +79,8 @@ export function RevenueOverview() {
                 setCustomFrom("");
                 setCustomTo("");
               }}
-              className="h-10 appearance-none rounded-xl border border-border bg-surface py-2 pr-9 pl-3 text-sm font-medium text-foreground outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
+              disabled={hasCustomRange}
+              className="h-10 appearance-none rounded-xl border border-border bg-surface py-2 pr-9 pl-3 text-sm font-medium text-foreground outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft disabled:opacity-60"
               aria-label="Revenue period"
             >
               {periodOptions.map((option) => (
@@ -73,7 +105,8 @@ export function RevenueOverview() {
             <input
               type="date"
               value={customFrom}
-              onChange={(event) => setCustomFrom(event.target.value)}
+              max={customTo || undefined}
+              onChange={(event) => onFromChange(event.target.value)}
               className="h-10 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
             />
           </label>
@@ -82,20 +115,42 @@ export function RevenueOverview() {
             <input
               type="date"
               value={customTo}
-              onChange={(event) => setCustomTo(event.target.value)}
+              min={customFrom || undefined}
+              onChange={(event) => onToChange(event.target.value)}
               className="h-10 rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
             />
           </label>
-          {customFrom && customTo ? (
+          {hasCustomRange ? (
+            <div className="flex flex-wrap items-center gap-2 pb-2">
+              <p className="text-xs text-muted">
+                Showing collections for check-ins {data.label}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomFrom("");
+                  setCustomTo("");
+                }}
+                className="rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted hover:bg-surface"
+              >
+                Clear
+              </button>
+            </div>
+          ) : (
             <p className="pb-2 text-xs text-muted">
-              Showing {periodLabel} using {periodOptions.find((o) => o.value === period)?.label.toLowerCase()} breakdown as reference.
+              {rangeInvalid
+                ? "To date must be on or after From."
+                : "Optional. Set both dates to override the period above."}
             </p>
-          ) : null}
+          )}
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Metric label={`${data.label} revenue`} value={formatINR(data.total)} />
+        <Metric
+          label={hasCustomRange ? "Range revenue" : `${data.label} revenue`}
+          value={formatINR(data.total)}
+        />
         <Metric
           label="Online share"
           value={`${Math.round((data.onlinePayments / paymentTotal) * 100)}%`}
@@ -112,12 +167,14 @@ export function RevenueOverview() {
           items={data.byRoomType}
           max={roomTypeMax}
           barClass="bg-brand-mid"
+          emptyLabel="No collections in this range"
         />
         <BreakdownList
           title="Revenue by booking source"
           items={data.byBookingSource}
           max={sourceMax}
           barClass="bg-accent"
+          emptyLabel="No collections in this range"
         />
       </div>
 
@@ -126,14 +183,14 @@ export function RevenueOverview() {
           label="Online payments"
           amount={data.onlinePayments}
           share={Math.round((data.onlinePayments / paymentTotal) * 100)}
-          periodLabel={data.label}
+          periodLabel={hasCustomRange ? "this range" : data.label}
           tone="online"
         />
         <PaymentCard
           label="Offline payments"
           amount={data.offlinePayments}
           share={Math.round((data.offlinePayments / paymentTotal) * 100)}
-          periodLabel={data.label}
+          periodLabel={hasCustomRange ? "this range" : data.label}
           tone="offline"
         />
       </div>
@@ -157,34 +214,42 @@ function BreakdownList({
   items,
   max,
   barClass,
+  emptyLabel,
 }: {
   title: string;
   items: { label: string; amount: number }[];
   max: number;
   barClass: string;
+  emptyLabel: string;
 }) {
   return (
     <div>
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <ul className="mt-3 space-y-3">
-        {items.map((item) => {
-          const width = Math.max(8, Math.round((item.amount / max) * 100));
-          return (
-            <li key={item.label}>
-              <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                <span className="text-foreground">{item.label}</span>
-                <span className="font-medium text-muted">{formatINR(item.amount)}</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
-                <div
-                  className={`h-full rounded-full ${barClass}`}
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">{emptyLabel}</p>
+      ) : (
+        <ul className="mt-3 space-y-3">
+          {items.map((item) => {
+            const width = Math.max(8, Math.round((item.amount / max) * 100));
+            return (
+              <li key={item.label}>
+                <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                  <span className="text-foreground">{item.label}</span>
+                  <span className="font-medium text-muted">
+                    {formatINR(item.amount)}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
+                  <div
+                    className={`h-full rounded-full ${barClass}`}
+                    style={{ width: `${width}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

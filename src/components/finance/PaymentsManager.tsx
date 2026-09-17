@@ -149,7 +149,11 @@ export function PaymentsManager() {
             <input
               type="date"
               value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDateFrom(value);
+                if (dateTo && value && value > dateTo) setDateTo(value);
+              }}
               aria-label="From date"
               max={dateTo || undefined}
               className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
@@ -160,7 +164,14 @@ export function PaymentsManager() {
             <input
               type="date"
               value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (dateFrom && value && value < dateFrom) {
+                  setDateTo(dateFrom);
+                  return;
+                }
+                setDateTo(value);
+              }}
               aria-label="To date"
               min={dateFrom || undefined}
               className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"

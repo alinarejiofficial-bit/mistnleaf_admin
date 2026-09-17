@@ -457,35 +457,43 @@ export function buildOccupancy(rooms: Room[]) {
   };
 }
 
+export function buildRevenueSlice(bookings: Reservation[], from: string, to: string) {
+  const rows = bookings.filter(
+    (booking) =>
+      booking.status !== "Cancelled" && booking.checkIn >= from && booking.checkIn <= to,
+  );
+  const byRoomType = new Map<string, number>();
+  const bySource = new Map<string, number>();
+  let online = 0;
+  let offline = 0;
+  for (const booking of rows) {
+    byRoomType.set(booking.roomType, (byRoomType.get(booking.roomType) ?? 0) + booking.paidAmount);
+    bySource.set(booking.source, (bySource.get(booking.source) ?? 0) + booking.paidAmount);
+    if (booking.source === "Walk-in" || booking.source === "Travel agent") {
+      offline += booking.paidAmount;
+    } else {
+      online += booking.paidAmount;
+    }
+  }
+  return {
+    total: rows.reduce((sum, booking) => sum + booking.paidAmount, 0),
+    byRoomType: Array.from(byRoomType, ([label, amount]) => ({ label, amount })),
+    byBookingSource: Array.from(bySource, ([label, amount]) => ({ label, amount })),
+    onlinePayments: online,
+    offlinePayments: offline,
+  };
+}
+
 export function buildRevenue(bookings: Reservation[], today = todayISO()) {
   const weekStart = addDaysISO(today, -6);
   const monthPrefix = today.slice(0, 7);
-  function slice(from: string, to: string) {
-    const rows = bookings.filter(
-      (booking) => booking.status !== "Cancelled" && booking.checkIn >= from && booking.checkIn <= to,
-    );
-    const byRoomType = new Map<string, number>();
-    const bySource = new Map<string, number>();
-    let online = 0;
-    let offline = 0;
-    for (const booking of rows) {
-      byRoomType.set(booking.roomType, (byRoomType.get(booking.roomType) ?? 0) + booking.paidAmount);
-      bySource.set(booking.source, (bySource.get(booking.source) ?? 0) + booking.paidAmount);
-      if (booking.source === "Walk-in" || booking.source === "Travel agent") offline += booking.paidAmount;
-      else online += booking.paidAmount;
-    }
-    return {
-      total: rows.reduce((sum, booking) => sum + booking.paidAmount, 0),
-      byRoomType: Array.from(byRoomType, ([label, amount]) => ({ label, amount })),
-      byBookingSource: Array.from(bySource, ([label, amount]) => ({ label, amount })),
-      onlinePayments: online,
-      offlinePayments: offline,
-    };
-  }
   return {
-    today: { label: "Today", ...slice(today, today) },
-    weekly: { label: "This week", ...slice(weekStart, today) },
-    monthly: { label: "This month", ...slice(`${monthPrefix}-01`, today) },
+    today: { label: "Today", ...buildRevenueSlice(bookings, today, today) },
+    weekly: { label: "This week", ...buildRevenueSlice(bookings, weekStart, today) },
+    monthly: {
+      label: "This month",
+      ...buildRevenueSlice(bookings, `${monthPrefix}-01`, today),
+    },
   };
 }
 
