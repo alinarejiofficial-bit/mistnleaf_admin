@@ -153,7 +153,6 @@ export function RoomsManager() {
     <div className="space-y-6">
       <PageHeader
         title="Rooms"
-        description="Add from an existing type or from scratch. Manage rates and availability."
         action={
           <PermissionGate action="rooms.create">
             <button
