@@ -40,26 +40,44 @@ function guestPaymentStatus(
   return active.every((r) => r.paymentStatus === "Paid") ? "Paid" : "Unpaid";
 }
 
+function guestStayFilterMatch(
+  guest: Guest,
+  bookings: Reservation[],
+  filter: "All" | "In-house" | "Checked out",
+) {
+  if (filter === "All") return true;
+  const stays = guestBookingsFor(guest, bookings);
+  const inHouse = stays.some((r) => r.status === "Checked-in");
+  const checkedOut = stays.some((r) => r.status === "Checked-out");
+  if (filter === "In-house") return inHouse;
+  return checkedOut && !inHouse;
+}
+
 export function GuestsManager() {
   const { guests, bookings, payments, rooms, saveGuest } = useOps();
   const [query, setQuery] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState<"All" | "Paid" | "Unpaid">(
-    "All",
-  );
-  const [statusFilter, setStatusFilter] = useState<
-    "All" | Guest["status"]
+  const [stayFilter, setStayFilter] = useState<
+    "All" | "In-house" | "Checked out"
   >("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
 
+  const checkedOutCount = useMemo(
+    () =>
+      guests.filter((g) => guestStayFilterMatch(g, bookings, "Checked out"))
+        .length,
+    [guests, bookings],
+  );
+  const inHouseCount = useMemo(
+    () =>
+      guests.filter((g) => guestStayFilterMatch(g, bookings, "In-house")).length,
+    [guests, bookings],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return guests.filter((g) => {
-      if (statusFilter !== "All" && g.status !== statusFilter) return false;
-      if (paymentFilter !== "All") {
-        const payment = guestPaymentStatus(g, bookings);
-        if (payment !== paymentFilter) return false;
-      }
+      if (!guestStayFilterMatch(g, bookings, stayFilter)) return false;
       if (!q) return true;
       return (
         g.name.toLowerCase().includes(q) ||
@@ -68,15 +86,13 @@ export function GuestsManager() {
         g.id.toLowerCase().includes(q)
       );
     });
-  }, [guests, query, paymentFilter, statusFilter, bookings]);
+  }, [guests, query, stayFilter, bookings]);
 
   const selected =
     filtered.find((g) => g.id === selectedId) ??
     guests.find((g) => g.id === selectedId) ??
     filtered[0] ??
     null;
-
-  const filtersActive = paymentFilter !== "All" || statusFilter !== "All";
 
   return (
     <div className="space-y-6">
@@ -86,16 +102,8 @@ export function GuestsManager() {
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatPill label="Total guests" value={guests.length} />
-        <StatPill
-          label="VIP guests"
-          value={guests.filter((g) => g.status === "VIP").length}
-          tone="warning"
-        />
-        <StatPill
-          label="Paid"
-          value={guests.filter((g) => guestPaymentStatus(g, bookings) === "Paid").length}
-          tone="success"
-        />
+        <StatPill label="In-house" value={inHouseCount} tone="info" />
+        <StatPill label="Checked out" value={checkedOutCount} tone="warning" />
         <StatPill
           label="Unpaid"
           value={guests.filter((g) => guestPaymentStatus(g, bookings) === "Unpaid").length}
@@ -103,7 +111,7 @@ export function GuestsManager() {
         />
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <label className="relative block w-full max-w-md">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
@@ -115,15 +123,15 @@ export function GuestsManager() {
         </label>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium tracking-wide text-muted uppercase">
-            Payment
+            Stay
           </span>
-          {(["All", "Paid", "Unpaid"] as const).map((item) => (
+          {(["All", "In-house", "Checked out"] as const).map((item) => (
             <button
               key={item}
               type="button"
-              onClick={() => setPaymentFilter(item)}
+              onClick={() => setStayFilter(item)}
               className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                paymentFilter === item
+                stayFilter === item
                   ? "bg-brand text-white"
                   : "border border-border bg-surface hover:bg-surface-muted"
               }`}
@@ -131,35 +139,6 @@ export function GuestsManager() {
               {item}
             </button>
           ))}
-          <span className="ml-1 text-xs font-medium tracking-wide text-muted uppercase sm:ml-2">
-            Status
-          </span>
-          {(["All", "Active", "VIP", "Blacklisted"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setStatusFilter(item)}
-              className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                statusFilter === item
-                  ? "bg-brand text-white"
-                  : "border border-border bg-surface hover:bg-surface-muted"
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-          {filtersActive ? (
-            <button
-              type="button"
-              onClick={() => {
-                setPaymentFilter("All");
-                setStatusFilter("All");
-              }}
-              className="rounded-xl border border-border px-3 py-2 text-sm text-muted hover:bg-surface-muted"
-            >
-              Clear filters
-            </button>
-          ) : null}
         </div>
       </div>
 
