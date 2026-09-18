@@ -107,32 +107,6 @@ export function RoomInventoryModal({
     setAmenitiesText(draft.amenities.join(", "));
   }
 
-  function applyRoomTemplate(sourceId: string) {
-    const source = existingRooms.find((item) => item.id === sourceId);
-    if (!source) return;
-    const draft = emptyRoomForType(existingRooms, source.type);
-    setForm((prev) => ({
-      ...draft,
-      id: prev.id,
-      floor: source.floor,
-      capacity: source.capacity,
-      beds: source.beds,
-      rate: source.rate,
-      sizeSqFt: source.sizeSqFt,
-      amenities: [...source.amenities],
-      imageUrl: source.imageUrl,
-      type: source.type,
-      status: prev.status || "Available",
-      notes: "",
-    }));
-    setAmenitiesText(source.amenities.join(", "));
-    if (addMode !== "type") setAddMode("type");
-  }
-
-  const roomsByName = [...existingRooms].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true }),
-  );
-
   if (!open) return null;
 
   return (
@@ -231,27 +205,6 @@ export function RoomInventoryModal({
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {isNew ? (
-              <Field label="Copy from room" className="sm:col-span-2">
-                <select
-                  value=""
-                  onChange={(event) => {
-                    if (event.target.value) applyRoomTemplate(event.target.value);
-                  }}
-                  className="field-input h-11"
-                >
-                  <option value="">Select an existing room…</option>
-                  {roomsByName.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} · {item.type}
-                    </option>
-                  ))}
-                </select>
-                <span className="mt-1 block text-xs text-muted">
-                  Optional. Copies type, rate, beds, and amenities — then creates the next unit.
-                </span>
-              </Field>
-            ) : null}
             <Field label="Room ID">
               <input
                 value={form.id}

@@ -6,6 +6,7 @@ import { PermissionGate } from "@/components/auth/PermissionGate";
 import { GuestEditModal } from "@/components/guests/GuestEditModal";
 import { useOps } from "@/components/ops/OpsProvider";
 import { formatINR, type Guest } from "@/lib/ops-data";
+import type { Reservation } from "@/lib/reservations";
 import { formatDisplayDate } from "@/lib/data";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
@@ -15,6 +16,29 @@ const statusStyles = {
   VIP: "bg-accent-soft text-[#8a6a2f]",
   Blacklisted: "bg-[#f8e9e6] text-danger",
 };
+
+const paymentStyles = {
+  Paid: "bg-[#e8f3ec] text-success",
+  Unpaid: "bg-[#f8e9e6] text-danger",
+};
+
+function guestBookingsFor(guest: Guest, bookings: Reservation[]) {
+  const emailKey = guest.email.trim().toLowerCase();
+  return bookings.filter(
+    (r) =>
+      r.status !== "Cancelled" &&
+      (r.guest === guest.name || r.email.trim().toLowerCase() === emailKey),
+  );
+}
+
+function guestPaymentStatus(
+  guest: Guest,
+  bookings: Reservation[],
+): "Paid" | "Unpaid" {
+  const active = guestBookingsFor(guest, bookings);
+  if (active.length === 0) return "Unpaid";
+  return active.every((r) => r.paymentStatus === "Paid") ? "Paid" : "Unpaid";
+}
 
 export function GuestsManager() {
   const { guests, bookings, payments, rooms, saveGuest } = useOps();
@@ -44,7 +68,7 @@ export function GuestsManager() {
     <div className="space-y-6">
       <PageHeader
         title="Guests"
-        description="Guest profiles, preferences, stay history, and spend."
+        description="Guest profiles, preferences, stay history, and payment status."
       />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatPill label="Total guests" value={guests.length} />
@@ -54,13 +78,13 @@ export function GuestsManager() {
           tone="warning"
         />
         <StatPill
-          label="Active"
-          value={guests.filter((g) => g.status === "Active").length}
+          label="Paid"
+          value={guests.filter((g) => guestPaymentStatus(g, bookings) === "Paid").length}
           tone="success"
         />
         <StatPill
-          label="Lifetime spend"
-          value={formatINR(guests.reduce((s, g) => s + g.totalSpend, 0))}
+          label="Unpaid"
+          value={guests.filter((g) => guestPaymentStatus(g, bookings) === "Unpaid").length}
           tone="brand"
         />
       </div>
@@ -83,12 +107,14 @@ export function GuestsManager() {
                 <tr>
                   <th className="px-5 py-3 font-medium">Guest</th>
                   <th className="px-5 py-3 font-medium">Stays</th>
-                  <th className="px-5 py-3 font-medium">Spend</th>
+                  <th className="px-5 py-3 font-medium">Payment</th>
                   <th className="px-5 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((guest) => (
+                {filtered.map((guest) => {
+                  const payment = guestPaymentStatus(guest, bookings);
+                  return (
                   <tr
                     key={guest.id}
                     onClick={() => setSelectedId(guest.id)}
@@ -101,8 +127,8 @@ export function GuestsManager() {
                       <div className="text-xs text-muted">{guest.email}</div>
                     </td>
                     <td className="px-5 py-3.5">{guest.stays}</td>
-                    <td className="px-5 py-3.5 font-medium">
-                      {formatINR(guest.totalSpend)}
+                    <td className="px-5 py-3.5">
+                      <Badge className={paymentStyles[payment]}>{payment}</Badge>
                     </td>
                     <td className="px-5 py-3.5">
                       <Badge className={statusStyles[guest.status]}>
@@ -110,7 +136,8 @@ export function GuestsManager() {
                       </Badge>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {filtered.length === 0 ? (
                   <EmptyRow colSpan={4} label="No guests found." />
                 ) : null}
@@ -148,7 +175,7 @@ function GuestPanel({
   onEdit,
 }: {
   guest: Guest | null;
-  bookings: import("@/lib/reservations").Reservation[];
+  bookings: Reservation[];
   payments: import("@/lib/ops-data").Payment[];
   onEdit: () => void;
 }) {
@@ -187,6 +214,7 @@ function GuestPanel({
       : latestBooking
         ? formatDisplayDate(latestBooking.checkOut)
         : "—";
+  const payment = guestPaymentStatus(guest, bookings);
 
   return (
     <section className="rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm sm:p-6">
@@ -201,7 +229,7 @@ function GuestPanel({
         <Row label="Room" value={roomValue} />
         <Row label="Nationality" value={nationalityValue} />
         <Row label="Last stay" value={lastStayValue} />
-        <Row label="Total spend" value={formatINR(guest.totalSpend)} />
+        <Row label="Payment" value={payment} />
         <Row label="Status" value={guest.status} />
         {guest.notes ? <Row label="Notes" value={guest.notes} /> : null}
       </div>
