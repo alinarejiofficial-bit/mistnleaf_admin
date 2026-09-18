@@ -39,8 +39,9 @@ function bookingPaymentStatus(
 ): PaymentStatus {
   if (status === "Refunded") return "Refunded";
   if (status === "Pending" || status === "Failed") return "Pending";
+  // Explicit Partial must stick even when paid equals the booking total.
   if (status === "Partial") return "Partial";
-  return paid >= total ? "Paid" : "Partial";
+  return paid >= total && total > 0 ? "Paid" : "Partial";
 }
 
 export function PaymentsManager() {
@@ -333,18 +334,17 @@ export function PaymentsManager() {
                   );
                   const numeric = Number(nextAmount);
                   setEditForm((prev) => {
+                    // Only auto-suggest Partial when lowering a Paid amount.
+                    // Never flip an explicit Partial selection back to Paid.
                     let nextStatus = prev.status;
                     if (
                       booking &&
                       Number.isFinite(numeric) &&
-                      (prev.status === "Success" || prev.status === "Partial")
+                      prev.status === "Success" &&
+                      numeric > 0 &&
+                      numeric < booking.amount
                     ) {
-                      nextStatus =
-                        numeric >= booking.amount && booking.amount > 0
-                          ? "Success"
-                          : numeric > 0
-                            ? "Partial"
-                            : "Pending";
+                      nextStatus = "Partial";
                     }
                     return { ...prev, amount: nextAmount, status: nextStatus };
                   });

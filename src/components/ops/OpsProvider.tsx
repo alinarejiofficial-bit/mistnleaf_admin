@@ -233,22 +233,22 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
             item.number === patch.room,
         )
       : undefined;
-    await updateStaffBooking(id, {
-      status: patch.status,
-      payment_status: patch.paymentStatus,
-      payment_method: patch.paymentMethod,
-      paid_amount: patch.paidAmount,
-      notes: patch.notes,
-      room_unit: roomMatch?.id,
-      guest: patch.guest,
-      email: patch.email,
-      phone: patch.phone,
-      checkIn: patch.checkIn,
-      checkOut: patch.checkOut,
-      adults: patch.adults,
-      children: patch.children,
-      source: patch.source,
-    });
+    const body: Parameters<typeof updateStaffBooking>[1] = {};
+    if (patch.status !== undefined) body.status = patch.status;
+    if (patch.paymentStatus !== undefined) body.payment_status = patch.paymentStatus;
+    if (patch.paymentMethod !== undefined) body.payment_method = patch.paymentMethod;
+    if (patch.paidAmount !== undefined) body.paid_amount = patch.paidAmount;
+    if (patch.notes !== undefined) body.notes = patch.notes;
+    if (roomMatch?.id) body.room_unit = roomMatch.id;
+    if (patch.guest !== undefined) body.guest = patch.guest;
+    if (patch.email !== undefined) body.email = patch.email;
+    if (patch.phone !== undefined) body.phone = patch.phone;
+    if (patch.checkIn !== undefined) body.checkIn = patch.checkIn;
+    if (patch.checkOut !== undefined) body.checkOut = patch.checkOut;
+    if (patch.adults !== undefined) body.adults = patch.adults;
+    if (patch.children !== undefined) body.children = patch.children;
+    if (patch.source !== undefined) body.source = patch.source;
+    await updateStaffBooking(id, body);
     await refresh();
   }, [refresh, staffRooms]);
 
