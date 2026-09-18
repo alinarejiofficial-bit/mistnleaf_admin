@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { queueRoomForCleaningAfterCheckout } from "@/lib/checkout-cleaning";
 import { formatINR } from "@/lib/ops-data";
@@ -8,6 +8,7 @@ import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
 import {
   reservationStatusStyles,
+  type PaymentMethod,
   type Reservation,
 } from "@/lib/reservations";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -16,6 +17,13 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
 import { Badge, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
 
+const paymentMethodOptions: PaymentMethod[] = [
+  "UPI",
+  "Cash",
+  "Card",
+  "Bank transfer",
+];
+
 export function CheckOutManager() {
   const {
     checkOutQueue,
@@ -23,7 +31,6 @@ export function CheckOutManager() {
     checkedOutToday,
     today,
     saveBooking,
-    recordPayment,
     rooms,
     updateHousekeeping,
     refresh,
@@ -52,12 +59,40 @@ export function CheckOutManager() {
 
   const confirmReservation = checkOutQueue.find((item) => item.id === confirmId);
 
+  async function collectBalance(id: string, paymentMethod: PaymentMethod) {
+    const booking = checkOutQueue.find((item) => item.id === id) ??
+      bookings.find((item) => item.id === id);
+    if (!booking) return;
+    const due = Math.max(0, booking.amount - booking.paidAmount);
+    if (due <= 0) return;
+    setBusyId(id);
+    try {
+      await saveBooking(id, {
+        paidAmount: booking.amount,
+        paymentStatus: "Paid",
+        paymentMethod,
+      });
+      showToast(`Collected ${formatINR(due)} via ${paymentMethod}.`);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not collect payment.",
+        "error",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function completeCheckOut(id: string, room: string) {
     setBusyId(id);
     try {
       const booking = checkOutQueue.find((item) => item.id === id);
       if (booking && booking.paidAmount < booking.amount) {
-        await recordPayment(id);
+        await saveBooking(id, {
+          paidAmount: booking.amount,
+          paymentStatus: "Paid",
+          paymentMethod: booking.paymentMethod ?? "Cash",
+        });
       }
       await saveBooking(id, { status: "Checked-out" });
       const match = rooms.find(
@@ -148,7 +183,7 @@ export function CheckOutManager() {
               }
               onCheckOut={() => setConfirmId(item.id)}
               onNotify={showToast}
-              onCollect={() => void recordPayment(item.id)}
+              onCollect={(method) => void collectBalance(item.id, method)}
             />
           ))}
           {checkOutQueue.length === 0 ? (
@@ -226,11 +261,18 @@ function DepartureRow({
   onToggle: () => void;
   onCheckOut: () => void;
   onNotify: (message: string, tone?: "success" | "error") => void;
-  onCollect: () => void;
+  onCollect: (method: PaymentMethod) => void;
 }) {
   const balance = Math.max(0, reservation.amount - reservation.paidAmount);
   const overdue = reservation.checkOut < today;
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    reservation.paymentMethod ?? "Cash",
+  );
+
+  useEffect(() => {
+    setPaymentMethod(reservation.paymentMethod ?? "Cash");
+  }, [reservation.id, reservation.paymentMethod]);
 
   return (
     <div className="px-5 py-4">
@@ -286,18 +328,43 @@ function DepartureRow({
             <FolioStat label="Paid" value={formatINR(reservation.paidAmount)} />
             <FolioStat label="Balance" value={formatINR(balance)} />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-end gap-2">
             {balance > 0 ? (
               <PermissionGate action="payments.record">
-                <button
-                  type="button"
-                  onClick={onCollect}
-                  className="rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover"
-                >
-                  Collect {formatINR(balance)}
-                </button>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-xs text-muted">Payment method</span>
+                    <select
+                      value={paymentMethod}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setPaymentMethod(event.target.value as PaymentMethod)
+                      }
+                      className="field-input h-10 min-w-[10rem]"
+                    >
+                      {paymentMethodOptions.map((method) => (
+                        <option key={method} value={method}>
+                          {method}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onCollect(paymentMethod)}
+                    className="rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
+                  >
+                    Collect {formatINR(balance)}
+                  </button>
+                </div>
               </PermissionGate>
-            ) : null}
+            ) : (
+              <p className="text-sm text-muted">
+                Paid in full
+                {reservation.paymentMethod ? ` · ${reservation.paymentMethod}` : ""}
+              </p>
+            )}
             <button
               type="button"
               onClick={() => {
