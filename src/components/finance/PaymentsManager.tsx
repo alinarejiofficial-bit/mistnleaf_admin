@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Download, Plus } from "lucide-react";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { formatINR, type Payment } from "@/lib/ops-data";
+import { downloadPaymentsCsv } from "@/lib/payment-csv";
 import { useOps } from "@/components/ops/OpsProvider";
 import { formatDisplayDate } from "@/lib/data";
 import type { PaymentStatus } from "@/lib/reservations";
@@ -93,6 +94,16 @@ export function PaymentsManager() {
     setEditBusy(false);
   }
 
+  function handleExport() {
+    const rows = filtered.length ? filtered : items;
+    if (!rows.length) {
+      showToast("No payments to export.", "error");
+      return;
+    }
+    downloadPaymentsCsv(rows);
+    showToast(`Exported ${rows.length} payment${rows.length === 1 ? "" : "s"}.`);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -103,7 +114,7 @@ export function PaymentsManager() {
             <PermissionGate action="payments.export">
               <button
                 type="button"
-                onClick={() => showToast("Payment export prepared (CSV download).")}
+                onClick={handleExport}
                 className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-surface-muted"
               >
                 <Download className="h-4 w-4" />

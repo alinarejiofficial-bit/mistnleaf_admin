@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useOps } from "@/components/ops/OpsProvider";
 import { formatINR } from "@/lib/ops-data";
@@ -84,34 +84,24 @@ export function CheckInManager() {
     }
   }
 
-  async function updatePaymentStatus(id: string, paymentStatus: PaymentStatus) {
+  async function savePayment(
+    id: string,
+    paymentStatus: PaymentStatus,
+    paymentMethod: PaymentMethod,
+  ) {
     const booking = bookings.find((item) => item.id === id);
     if (!booking) return;
     setBusyId(id);
     try {
       await saveBooking(id, {
         paymentStatus,
+        paymentMethod,
         paidAmount: paidAmountForStatus(booking, paymentStatus),
       });
-      showToast(`Payment marked ${paymentStatus}.`);
+      showToast(`Payment saved · ${paymentStatus} · ${paymentMethod}.`);
     } catch (err) {
       showToast(
-        err instanceof Error ? err.message : "Could not update payment status.",
-        "error",
-      );
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function updatePaymentMethod(id: string, paymentMethod: PaymentMethod) {
-    setBusyId(id);
-    try {
-      await saveBooking(id, { paymentMethod });
-      showToast(`Payment method set to ${paymentMethod}.`);
-    } catch (err) {
-      showToast(
-        err instanceof Error ? err.message : "Could not update payment method.",
+        err instanceof Error ? err.message : "Could not save payment.",
         "error",
       );
     } finally {
@@ -162,8 +152,9 @@ export function CheckInManager() {
               }
               onCheckIn={() => void completeCheckIn(item.id)}
               onCollect={() => void recordPayment(item.id)}
-              onPaymentStatus={(status) => void updatePaymentStatus(item.id, status)}
-              onPaymentMethod={(method) => void updatePaymentMethod(item.id, method)}
+              onSavePayment={(status, method) =>
+                void savePayment(item.id, status, method)
+              }
             />
           ))}
           {checkInQueue.length === 0 ? (
@@ -211,8 +202,7 @@ function ArrivalRow({
   onToggle,
   onCheckIn,
   onCollect,
-  onPaymentStatus,
-  onPaymentMethod,
+  onSavePayment,
 }: {
   reservation: Reservation;
   today: string;
@@ -221,11 +211,29 @@ function ArrivalRow({
   onToggle: () => void;
   onCheckIn: () => void;
   onCollect: () => void;
-  onPaymentStatus: (status: PaymentStatus) => void;
-  onPaymentMethod: (method: PaymentMethod) => void;
+  onSavePayment: (status: PaymentStatus, method: PaymentMethod) => void;
 }) {
   const balance = Math.max(0, reservation.amount - reservation.paidAmount);
   const overdue = reservation.checkIn < today;
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
+    reservation.paymentStatus,
+  );
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    reservation.paymentMethod ?? "Cash",
+  );
+
+  useEffect(() => {
+    setPaymentStatus(reservation.paymentStatus);
+    setPaymentMethod(reservation.paymentMethod ?? "Cash");
+  }, [reservation.paymentStatus, reservation.paymentMethod, reservation.id]);
+
+  const draftPaid = paidAmountForStatus(
+    { ...reservation, paymentStatus },
+    paymentStatus,
+  );
+  const dirty =
+    paymentStatus !== reservation.paymentStatus ||
+    paymentMethod !== (reservation.paymentMethod ?? "Cash");
 
   return (
     <div className="px-5 py-4">
@@ -302,10 +310,10 @@ function ArrivalRow({
                 <label className="block text-sm">
                   <span className="mb-1 block text-xs text-muted">Status</span>
                   <select
-                    value={reservation.paymentStatus}
+                    value={paymentStatus}
                     disabled={busy}
                     onChange={(event) =>
-                      onPaymentStatus(event.target.value as PaymentStatus)
+                      setPaymentStatus(event.target.value as PaymentStatus)
                     }
                     className="field-input h-10 w-full"
                   >
@@ -319,10 +327,10 @@ function ArrivalRow({
                 <label className="block text-sm">
                   <span className="mb-1 block text-xs text-muted">Method</span>
                   <select
-                    value={reservation.paymentMethod ?? "Cash"}
+                    value={paymentMethod}
                     disabled={busy}
                     onChange={(event) =>
-                      onPaymentMethod(event.target.value as PaymentMethod)
+                      setPaymentMethod(event.target.value as PaymentMethod)
                     }
                     className="field-input h-10 w-full"
                   >
@@ -335,22 +343,36 @@ function ArrivalRow({
                 </label>
               </div>
               <p className="mt-1 text-xs text-muted">
-                {formatINR(reservation.paidAmount)} paid of {formatINR(reservation.amount)}
+                {formatINR(draftPaid)} paid of {formatINR(reservation.amount)}
+                {dirty ? " · unsaved changes" : ""}
               </p>
             </PermissionGate>
           </div>
           <ChecklistItem label="Room assigned" detail={reservation.room} />
-          {balance > 0 ? (
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
+            {balance > 0 ? (
+              <PermissionGate action="payments.record">
+                <button
+                  type="button"
+                  onClick={onCollect}
+                  disabled={busy}
+                  className="rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-muted disabled:opacity-60"
+                >
+                  Collect {formatINR(balance)}
+                </button>
+              </PermissionGate>
+            ) : null}
             <PermissionGate action="payments.record">
               <button
                 type="button"
-                onClick={onCollect}
-                className="rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                disabled={busy || !dirty}
+                onClick={() => onSavePayment(paymentStatus, paymentMethod)}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:opacity-60"
               >
-                Collect {formatINR(balance)}
+                {busy ? "Saving…" : "Save"}
               </button>
             </PermissionGate>
-          ) : null}
+          </div>
         </div>
       ) : null}
     </div>
