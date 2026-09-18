@@ -6,13 +6,34 @@ import { useOps } from "@/components/ops/OpsProvider";
 import { formatINR } from "@/lib/ops-data";
 import { formatDisplayDate } from "@/lib/data";
 import {
+  paymentStatusStyles,
   reservationStatusStyles,
+  type PaymentStatus,
   type Reservation,
 } from "@/lib/reservations";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 import { useFloatingToast } from "@/components/ui/useFloatingToast";
 import { Badge, SectionCard, StatPill } from "@/components/ui/ModulePrimitives";
+
+const paymentStatusOptions: PaymentStatus[] = [
+  "Paid",
+  "Partial",
+  "Pending",
+  "Refunded",
+];
+
+function paidAmountForStatus(
+  booking: Reservation,
+  paymentStatus: PaymentStatus,
+): number {
+  if (paymentStatus === "Paid") return booking.amount;
+  if (paymentStatus === "Pending" || paymentStatus === "Refunded") return 0;
+  if (booking.paidAmount > 0 && booking.paidAmount < booking.amount) {
+    return booking.paidAmount;
+  }
+  return Math.max(1, Math.floor(booking.amount / 2));
+}
 
 export function CheckInManager() {
   const {
@@ -48,6 +69,26 @@ export function CheckInManager() {
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Could not complete check-in.",
+        "error",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function updatePaymentStatus(id: string, paymentStatus: PaymentStatus) {
+    const booking = bookings.find((item) => item.id === id);
+    if (!booking) return;
+    setBusyId(id);
+    try {
+      await saveBooking(id, {
+        paymentStatus,
+        paidAmount: paidAmountForStatus(booking, paymentStatus),
+      });
+      showToast(`Payment marked ${paymentStatus}.`);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not update payment status.",
         "error",
       );
     } finally {
@@ -98,6 +139,7 @@ export function CheckInManager() {
               }
               onCheckIn={() => void completeCheckIn(item.id)}
               onCollect={() => void recordPayment(item.id)}
+              onPaymentStatus={(status) => void updatePaymentStatus(item.id, status)}
             />
           ))}
           {checkInQueue.length === 0 ? (
@@ -145,6 +187,7 @@ function ArrivalRow({
   onToggle,
   onCheckIn,
   onCollect,
+  onPaymentStatus,
 }: {
   reservation: Reservation;
   today: string;
@@ -153,6 +196,7 @@ function ArrivalRow({
   onToggle: () => void;
   onCheckIn: () => void;
   onCollect: () => void;
+  onPaymentStatus: (status: PaymentStatus) => void;
 }) {
   const balance = Math.max(0, reservation.amount - reservation.paidAmount);
   const overdue = reservation.checkIn < today;
@@ -165,6 +209,9 @@ function ArrivalRow({
             <p className="font-medium text-foreground">{reservation.guest}</p>
             <Badge className={reservationStatusStyles[reservation.status]}>
               {reservation.status}
+            </Badge>
+            <Badge className={paymentStatusStyles[reservation.paymentStatus]}>
+              {reservation.paymentStatus}
             </Badge>
             {overdue ? (
               <Badge className="bg-[#f8e9e6] text-danger">Overdue arrival</Badge>
@@ -214,10 +261,35 @@ function ArrivalRow({
             label="Guest verified"
             detail={`${reservation.email} · ${reservation.phone}`}
           />
-          <ChecklistItem
-            label="Payment status"
-            detail={`${reservation.paymentStatus} · ${formatINR(reservation.paidAmount)} paid`}
-          />
+          <div className="rounded-lg bg-surface px-3 py-2.5">
+            <p className="text-xs font-medium text-brand-mid">Payment status</p>
+            <PermissionGate
+              action="payments.record"
+              fallback={
+                <p className="mt-1 text-sm text-foreground">
+                  {reservation.paymentStatus} · {formatINR(reservation.paidAmount)} paid
+                </p>
+              }
+            >
+              <select
+                value={reservation.paymentStatus}
+                disabled={busy}
+                onChange={(event) =>
+                  onPaymentStatus(event.target.value as PaymentStatus)
+                }
+                className="field-input mt-1.5 h-10 w-full"
+              >
+                {paymentStatusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                {formatINR(reservation.paidAmount)} paid of {formatINR(reservation.amount)}
+              </p>
+            </PermissionGate>
+          </div>
           <ChecklistItem label="Room assigned" detail={reservation.room} />
           {balance > 0 ? (
             <PermissionGate action="payments.record">
