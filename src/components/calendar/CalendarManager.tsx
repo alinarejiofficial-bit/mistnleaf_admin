@@ -8,10 +8,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { addDaysISO, calendarFromOps } from "@/lib/ops-live";
 
 const cellStyles = {
-  free: "border-[#cfe6d7] bg-[#e8f3ec] text-success",
-  occupied: "border-brand/25 bg-brand-soft text-brand",
-  reserved: "border-accent/40 bg-accent-soft text-[#8a6a2f]",
-  blocked: "border-danger/25 bg-[#f8e9e6] text-danger",
+  free: "border-[#b7dfc4] bg-[#e8f3ec] text-[#1f7a45]",
+  occupied: "border-[#9ec4e0] bg-[#e7f0f5] text-[#1d5f8a]",
+  reserved: "border-[#e2c48a] bg-[#f7efdf] text-[#8a6a2f]",
+  blocked: "border-[#e3b4ab] bg-[#f8e9e6] text-[#b42318]",
 };
 
 const labels = {
