@@ -50,7 +50,6 @@ export function CheckInManager() {
     checkedInToday,
     today,
     saveBooking,
-    recordPayment,
     refresh,
     bookings,
     ready,
@@ -77,6 +76,31 @@ export function CheckInManager() {
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Could not complete check-in.",
+        "error",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function collectPayment(
+    id: string,
+    paymentMethod: PaymentMethod,
+    dueAmount: number,
+  ) {
+    const booking = bookings.find((item) => item.id === id);
+    if (!booking) return;
+    setBusyId(id);
+    try {
+      await saveBooking(id, {
+        paymentStatus: "Paid",
+        paymentMethod,
+        paidAmount: booking.amount,
+      });
+      showToast(`Collected ${formatINR(dueAmount)} · marked Paid.`);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not collect payment.",
         "error",
       );
     } finally {
@@ -151,7 +175,7 @@ export function CheckInManager() {
                 setExpandedId((prev) => (prev === item.id ? null : item.id))
               }
               onCheckIn={() => void completeCheckIn(item.id)}
-              onCollect={() => void recordPayment(item.id)}
+              onCollect={(method, due) => void collectPayment(item.id, method, due)}
               onSavePayment={(status, method) =>
                 void savePayment(item.id, status, method)
               }
@@ -210,10 +234,9 @@ function ArrivalRow({
   busy: boolean;
   onToggle: () => void;
   onCheckIn: () => void;
-  onCollect: () => void;
+  onCollect: (method: PaymentMethod, dueAmount: number) => void;
   onSavePayment: (status: PaymentStatus, method: PaymentMethod) => void;
 }) {
-  const balance = Math.max(0, reservation.amount - reservation.paidAmount);
   const overdue = reservation.checkIn < today;
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
     reservation.paymentStatus,
@@ -227,13 +250,12 @@ function ArrivalRow({
     setPaymentMethod(reservation.paymentMethod ?? "Cash");
   }, [reservation.paymentStatus, reservation.paymentMethod, reservation.id]);
 
-  const draftPaid = paidAmountForStatus(
-    { ...reservation, paymentStatus },
-    paymentStatus,
-  );
+  const draftPaid = paidAmountForStatus(reservation, paymentStatus);
+  const collectBalance = Math.max(0, reservation.amount - draftPaid);
   const dirty =
     paymentStatus !== reservation.paymentStatus ||
-    paymentMethod !== (reservation.paymentMethod ?? "Cash");
+    paymentMethod !== (reservation.paymentMethod ?? "Cash") ||
+    draftPaid !== reservation.paidAmount;
 
   return (
     <div className="px-5 py-4">
@@ -259,8 +281,8 @@ function ArrivalRow({
           </p>
           <p className="mt-1 text-xs text-muted">
             Check-in {formatDisplayDate(reservation.checkIn)} →{" "}
-            {formatDisplayDate(reservation.checkOut)} · Balance: {formatINR(balance)} ·{" "}
-            {reservation.phone}
+            {formatDisplayDate(reservation.checkOut)} · Balance:{" "}
+            {formatINR(collectBalance)} · {reservation.phone}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -350,15 +372,15 @@ function ArrivalRow({
           </div>
           <ChecklistItem label="Room assigned" detail={reservation.room} />
           <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
-            {balance > 0 ? (
+            {collectBalance > 0 ? (
               <PermissionGate action="payments.record">
                 <button
                   type="button"
-                  onClick={onCollect}
+                  onClick={() => onCollect(paymentMethod, collectBalance)}
                   disabled={busy}
                   className="rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-muted disabled:opacity-60"
                 >
-                  Collect {formatINR(balance)}
+                  Collect {formatINR(collectBalance)}
                 </button>
               </PermissionGate>
             ) : null}
