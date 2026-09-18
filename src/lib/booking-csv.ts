@@ -250,8 +250,8 @@ export function parseBookingsCsv(text: string): {
       errors.push(`Row ${lineNo}: guest, email, phone, roomType, checkIn, and checkOut are required.`);
       return;
     }
-    if (checkOut <= checkIn) {
-      errors.push(`Row ${lineNo}: check-out must be after check-in.`);
+    if (checkOut < checkIn) {
+      errors.push(`Row ${lineNo}: check-out cannot be before check-in.`);
       return;
     }
 

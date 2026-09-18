@@ -14,19 +14,13 @@ const bookingSources: BookingSource[] = [
   "Travel agent",
 ];
 
-function dayAfter(iso: string) {
-  const date = new Date(`${iso}T12:00:00`);
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().slice(0, 10);
-}
-
 function nightsBetween(checkIn: string, checkOut: string) {
   if (!checkIn || !checkOut) return 0;
   const start = new Date(`${checkIn}T12:00:00`);
   const end = new Date(`${checkOut}T12:00:00`);
   const diff = end.getTime() - start.getTime();
-  if (diff <= 0) return 0;
-  return Math.round(diff / (1000 * 60 * 60 * 24));
+  if (diff < 0) return 0;
+  return Math.max(Math.round(diff / (1000 * 60 * 60 * 24)), 1);
 }
 
 type EditBookingModalProps = {
@@ -109,8 +103,8 @@ export function EditBookingModal({
               setError("Guest, contact, and dates are required.");
               return;
             }
-            if (form.checkOut <= form.checkIn) {
-              setError("Check-out must be after check-in.");
+            if (form.checkOut < form.checkIn) {
+              setError("Check-out cannot be before check-in.");
               return;
             }
             const nights = nightsBetween(form.checkIn, form.checkOut);
@@ -181,13 +175,12 @@ export function EditBookingModal({
                 value={form.checkIn}
                 onChange={(event) => {
                   const nextCheckIn = event.target.value;
-                  const minOut = nextCheckIn ? dayAfter(nextCheckIn) : "";
                   setForm((prev) => ({
                     ...prev,
                     checkIn: nextCheckIn,
                     checkOut:
-                      !prev.checkOut || !nextCheckIn || prev.checkOut <= nextCheckIn
-                        ? minOut
+                      !prev.checkOut || !nextCheckIn || prev.checkOut < nextCheckIn
+                        ? nextCheckIn
                         : prev.checkOut,
                   }));
                 }}
@@ -199,7 +192,7 @@ export function EditBookingModal({
               <input
                 required
                 type="date"
-                min={form.checkIn ? dayAfter(form.checkIn) : undefined}
+                min={form.checkIn || undefined}
                 value={form.checkOut}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, checkOut: event.target.value }))

@@ -116,8 +116,8 @@ export function NewBookingModal({
               setError("Guest, contact, room type, and dates are required.");
               return;
             }
-            if (form.checkOut <= form.checkIn) {
-              setError("Check-out must be after check-in.");
+            if (form.checkOut < form.checkIn) {
+              setError("Check-out cannot be before check-in.");
               return;
             }
             if (!selectedRoom) {
@@ -204,13 +204,12 @@ export function NewBookingModal({
                 value={form.checkIn}
                 onChange={(event) => {
                   const nextCheckIn = event.target.value;
-                  const minOut = nextCheckIn ? dayAfter(nextCheckIn) : "";
                   setForm((prev) => ({
                     ...prev,
                     checkIn: nextCheckIn,
                     checkOut:
-                      !prev.checkOut || !nextCheckIn || prev.checkOut <= nextCheckIn
-                        ? minOut
+                      !prev.checkOut || !nextCheckIn || prev.checkOut < nextCheckIn
+                        ? nextCheckIn
                         : prev.checkOut,
                     roomId: "",
                   }));
@@ -223,7 +222,7 @@ export function NewBookingModal({
               <input
                 required
                 type="date"
-                min={form.checkIn ? dayAfter(form.checkIn) : dayAfter(today)}
+                min={form.checkIn || today}
                 value={form.checkOut}
                 onChange={(event) =>
                   setForm((prev) => ({
@@ -240,9 +239,9 @@ export function NewBookingModal({
             <span className="mb-1.5 block font-medium text-foreground">
               Available {form.roomType || "rooms"}
             </span>
-            {!form.checkIn || !form.checkOut || form.checkOut <= form.checkIn ? (
+            {!form.checkIn || !form.checkOut || form.checkOut < form.checkIn ? (
               <p className="rounded-xl border border-dashed border-border px-3 py-3 text-sm text-muted">
-                Choose a check-out date after check-in to see available rooms.
+                Choose check-in and check-out dates to see available rooms.
               </p>
             ) : roomsOfType.length === 0 ? (
               <p className="rounded-xl border border-danger/20 bg-[#f8e9e6]/70 px-3 py-3 text-sm font-medium text-danger">

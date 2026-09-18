@@ -281,13 +281,15 @@ export function calendarFromOps(rooms: Room[], bookings: Reservation[], start = 
     room: room.name,
     days: days.map((day) => {
       if (room.status === "Maintenance" || room.status === "Cleaning") return "blocked";
-      const stay = bookings.find(
-        (booking) =>
-          booking.room === room.name &&
-          booking.status !== "Cancelled" &&
-          booking.checkIn <= day &&
-          booking.checkOut > day,
-      );
+      const stay = bookings.find((booking) => {
+        if (booking.room !== room.name || booking.status === "Cancelled") return false;
+        if (booking.checkIn > day) return false;
+        const stayEnd =
+          booking.checkOut > booking.checkIn
+            ? booking.checkOut
+            : addDaysISO(booking.checkIn, 1);
+        return stayEnd > day;
+      });
       if (!stay) return "free";
       if (stay.status === "Checked-in") return "occupied";
       return "reserved";

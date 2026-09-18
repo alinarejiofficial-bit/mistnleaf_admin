@@ -516,6 +516,17 @@ export function datesOverlap(
   return startA < endB && startB < endA;
 }
 
+function dayAfter(iso: string) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Half-open stay end; same-day check-in/out occupies the check-in date. */
+function exclusiveStayEnd(checkIn: string, checkOut: string) {
+  return checkOut > checkIn ? checkOut : dayAfter(checkIn);
+}
+
 const BLOCKING_BOOKING_STATUSES = new Set([
   "Pending",
   "Confirmed",
@@ -528,14 +539,19 @@ export function isRoomAvailableForDates(
   checkOut: string,
   bookings: Array<{ room: string; roomType?: string; checkIn: string; checkOut: string; status: string }>,
 ): boolean {
-  if (!checkIn || !checkOut || checkOut <= checkIn) return false;
+  if (!checkIn || !checkOut || checkOut < checkIn) return false;
   if (room.status === "Maintenance") return false;
-  return !bookings.some(
-    (booking) =>
-      BLOCKING_BOOKING_STATUSES.has(booking.status) &&
-      bookingMatchesRoom(booking, room) &&
-      datesOverlap(booking.checkIn, booking.checkOut, checkIn, checkOut),
-  );
+  const stayEnd = exclusiveStayEnd(checkIn, checkOut);
+  return !bookings.some((booking) => {
+    if (!BLOCKING_BOOKING_STATUSES.has(booking.status)) return false;
+    if (!bookingMatchesRoom(booking, room)) return false;
+    return datesOverlap(
+      booking.checkIn,
+      exclusiveStayEnd(booking.checkIn, booking.checkOut),
+      checkIn,
+      stayEnd,
+    );
+  });
 }
 
 export function availableRoomsForType(
