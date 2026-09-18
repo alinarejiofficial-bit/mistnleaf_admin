@@ -43,26 +43,40 @@ function guestPaymentStatus(
 export function GuestsManager() {
   const { guests, bookings, payments, rooms, saveGuest } = useOps();
   const [query, setQuery] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState<"All" | "Paid" | "Unpaid">(
+    "All",
+  );
+  const [statusFilter, setStatusFilter] = useState<
+    "All" | Guest["status"]
+  >("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return guests;
-    return guests.filter(
-      (g) =>
+    return guests.filter((g) => {
+      if (statusFilter !== "All" && g.status !== statusFilter) return false;
+      if (paymentFilter !== "All") {
+        const payment = guestPaymentStatus(g, bookings);
+        if (payment !== paymentFilter) return false;
+      }
+      if (!q) return true;
+      return (
         g.name.toLowerCase().includes(q) ||
         g.email.toLowerCase().includes(q) ||
         g.phone.includes(q) ||
-        g.id.toLowerCase().includes(q),
-    );
-  }, [guests, query]);
+        g.id.toLowerCase().includes(q)
+      );
+    });
+  }, [guests, query, paymentFilter, statusFilter, bookings]);
 
   const selected =
     filtered.find((g) => g.id === selectedId) ??
     guests.find((g) => g.id === selectedId) ??
     filtered[0] ??
     null;
+
+  const filtersActive = paymentFilter !== "All" || statusFilter !== "All";
 
   return (
     <div className="space-y-6">
@@ -89,15 +103,65 @@ export function GuestsManager() {
         />
       </div>
 
-      <label className="relative block max-w-md">
-        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search guests..."
-          className="h-11 w-full rounded-xl border border-border bg-surface pr-3 pl-10 text-sm outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
-        />
-      </label>
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between">
+        <label className="relative block w-full max-w-md">
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search guests..."
+            className="h-11 w-full rounded-xl border border-border bg-surface pr-3 pl-10 text-sm outline-none focus:border-brand-mid focus:ring-2 focus:ring-brand-soft"
+          />
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium tracking-wide text-muted uppercase">
+            Payment
+          </span>
+          {(["All", "Paid", "Unpaid"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setPaymentFilter(item)}
+              className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                paymentFilter === item
+                  ? "bg-brand text-white"
+                  : "border border-border bg-surface hover:bg-surface-muted"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+          <span className="ml-1 text-xs font-medium tracking-wide text-muted uppercase sm:ml-2">
+            Status
+          </span>
+          {(["All", "Active", "VIP", "Blacklisted"] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setStatusFilter(item)}
+              className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                statusFilter === item
+                  ? "bg-brand text-white"
+                  : "border border-border bg-surface hover:bg-surface-muted"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+          {filtersActive ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentFilter("All");
+                setStatusFilter("All");
+              }}
+              className="rounded-xl border border-border px-3 py-2 text-sm text-muted hover:bg-surface-muted"
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
         <SectionCard title="Guest directory" description={`${filtered.length} profiles`}>
