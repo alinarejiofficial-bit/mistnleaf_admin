@@ -13,6 +13,7 @@ import type { FinanceInvoiceDetail, FinancePayment, FinanceRefund } from "@/lib/
 import type { AssignedRoom, HousekeepingRoomStatus } from "@/lib/housekeeping-data";
 import type {
   BookingSource,
+  PaymentMethod,
   PaymentStatus,
   Reservation,
   ReservationStatus,
@@ -35,6 +36,23 @@ export function addDaysISO(iso: string, days: number) {
   const date = new Date(`${iso}T12:00:00`);
   date.setDate(date.getDate() + days);
   return todayISO(date);
+}
+
+function inferPaymentMethod(
+  source: BookingSource,
+  stored?: string | null,
+): PaymentMethod {
+  if (
+    stored === "UPI" ||
+    stored === "Card" ||
+    stored === "Cash" ||
+    stored === "Bank transfer"
+  ) {
+    return stored;
+  }
+  return source === "Direct website" || source === "OTA / Booking.com"
+    ? "UPI"
+    : "Cash";
 }
 
 export function mapStaffBooking(item: StaffReservation): Reservation {
@@ -60,6 +78,7 @@ export function mapStaffBooking(item: StaffReservation): Reservation {
     Refunded: "Refunded",
   };
 
+  const source = sourceMap[item.source] ?? "Direct website";
   return {
     id: item.id,
     guest: item.guest,
@@ -73,8 +92,9 @@ export function mapStaffBooking(item: StaffReservation): Reservation {
     checkOut: item.checkOut,
     nights: item.nights,
     status: statusMap[item.status] ?? "Pending",
-    source: sourceMap[item.source] ?? "Direct website",
+    source,
     paymentStatus: paymentMap[item.paymentStatus] ?? "Pending",
+    paymentMethod: inferPaymentMethod(source, item.paymentMethod),
     amount: Number(item.amount) || 0,
     paidAmount: Number(item.paidAmount) || 0,
     notes: item.notes,
@@ -143,16 +163,21 @@ export function guestsFromBookings(bookings: Reservation[]): Guest[] {
 export function paymentsFromBookings(bookings: Reservation[]): Payment[] {
   return bookings.map((booking) => {
     const online = booking.source === "Direct website" || booking.source === "OTA / Booking.com";
-    let status: Payment["status"] = "Success";
-    if (booking.paymentStatus === "Pending") status = "Pending";
-    else if (booking.paymentStatus === "Refunded") status = "Refunded";
+    let status: Payment["status"];
+    if (booking.paymentStatus === "Refunded") status = "Refunded";
+    else if (booking.paymentStatus === "Pending") status = "Pending";
+    else if (booking.paymentStatus === "Partial") status = "Partial";
+    else if (booking.paymentStatus === "Paid") status = "Success";
+    else if (booking.paidAmount >= booking.amount && booking.amount > 0) status = "Success";
+    else if (booking.paidAmount > 0) status = "Partial";
+    else status = "Pending";
     return {
       id: `PAY-${booking.id.replace("RSV-", "")}`,
       guest: booking.guest,
       reservationId: booking.id,
-      method: online ? "UPI" : "Cash",
+      method: booking.paymentMethod ?? inferPaymentMethod(booking.source),
       channel: online ? "Online" : "Offline",
-      amount: booking.paidAmount || booking.amount,
+      amount: booking.paidAmount > 0 ? booking.paidAmount : booking.amount,
       status,
       date: booking.checkIn,
     };
@@ -183,9 +208,15 @@ export function financePaymentsFromBookings(bookings: Reservation[]): FinancePay
   return paymentsFromBookings(bookings).map((payment) => {
     const booking = bookings.find((item) => item.id === payment.reservationId);
     let status: FinancePayment["status"] = "Paid";
-    if (payment.status === "Pending") status = booking?.paymentStatus === "Partial" ? "Partially Paid" : "Pending";
-    if (payment.status === "Refunded") status = "Refunded";
-    if (payment.status === "Failed") status = "Failed";
+    if (payment.status === "Partial" || booking?.paymentStatus === "Partial") {
+      status = "Partially Paid";
+    } else if (payment.status === "Pending") {
+      status = "Pending";
+    } else if (payment.status === "Refunded") {
+      status = "Refunded";
+    } else if (payment.status === "Failed") {
+      status = "Failed";
+    }
     return {
       id: payment.id,
       reference: payment.id.replace("PAY-", "TXN-"),

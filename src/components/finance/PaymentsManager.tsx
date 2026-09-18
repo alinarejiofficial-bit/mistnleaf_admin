@@ -13,17 +13,24 @@ import { Badge, EmptyRow, SectionCard, StatPill } from "@/components/ui/ModulePr
 
 const statusStyles = {
   Success: "bg-[#e8f3ec] text-success",
-  Pending: "bg-accent-soft text-[#8a6a2f]",
+  Partial: "bg-accent-soft text-[#8a6a2f]",
+  Pending: "bg-[#f8e9e6] text-danger",
   Failed: "bg-[#f8e9e6] text-danger",
   Refunded: "bg-surface-muted text-muted",
 };
 
 const paymentStatuses: Payment["status"][] = [
   "Success",
+  "Partial",
   "Pending",
   "Failed",
   "Refunded",
 ];
+
+function paymentLabel(status: Payment["status"]) {
+  if (status === "Success") return "Paid";
+  return status;
+}
 
 function bookingPaymentStatus(
   status: Payment["status"],
@@ -32,13 +39,14 @@ function bookingPaymentStatus(
 ): PaymentStatus {
   if (status === "Refunded") return "Refunded";
   if (status === "Pending" || status === "Failed") return "Pending";
+  if (status === "Partial") return "Partial";
   return paid >= total ? "Paid" : "Partial";
 }
 
 export function PaymentsManager() {
   const { payments, recordPayment, bookings, saveBooking } = useOps();
   const items = payments;
-  const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
+  const [filter, setFilter] = useState<"All" | "Paid" | "Partial" | "Pending">("All");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [recordOpen, setRecordOpen] = useState(false);
@@ -46,6 +54,7 @@ export function PaymentsManager() {
   const [editForm, setEditForm] = useState({
     amount: "",
     status: "Pending" as Payment["status"],
+    method: "Cash" as Payment["method"],
   });
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
@@ -55,6 +64,7 @@ export function PaymentsManager() {
   const filtered = useMemo(() => {
     return items.filter((payment) => {
       if (filter === "Paid" && payment.status !== "Success") return false;
+      if (filter === "Partial" && payment.status !== "Partial") return false;
       if (filter === "Pending" && payment.status !== "Pending") return false;
       if (dateFrom && payment.date < dateFrom) return false;
       if (dateTo && payment.date > dateTo) return false;
@@ -63,10 +73,11 @@ export function PaymentsManager() {
   }, [filter, dateFrom, dateTo, items]);
 
   const collected = items
-    .filter((p) => p.status === "Success")
+    .filter((p) => p.status === "Success" || p.status === "Partial")
     .reduce((s, p) => s + p.amount, 0);
 
   const paidPayments = items.filter((p) => p.status === "Success");
+  const partialPayments = items.filter((p) => p.status === "Partial");
   const pendingPayments = items.filter((p) => p.status === "Pending");
   const pendingAmount = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
 
@@ -75,6 +86,7 @@ export function PaymentsManager() {
     setEditForm({
       amount: String(payment.amount),
       status: payment.status,
+      method: payment.method,
     });
     setEditError("");
     setEditBusy(false);
@@ -115,15 +127,15 @@ export function PaymentsManager() {
         <StatPill label="Collected" value={formatINR(collected)} tone="success" />
         <StatPill label="Paid" value={paidPayments.length} tone="success" />
         <StatPill
-          label="Pending"
-          value={pendingPayments.length}
-          tone="danger"
+          label="Partial"
+          value={partialPayments.length}
+          tone="warning"
         />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          {(["All", "Paid", "Pending"] as const).map((item) => (
+          {(["All", "Paid", "Partial", "Pending"] as const).map((item) => (
             <button
               key={item}
               type="button"
@@ -227,7 +239,7 @@ export function PaymentsManager() {
                   </td>
                   <td className="px-5 py-3.5">
                     <Badge className={statusStyles[payment.status]}>
-                      {payment.status === "Success" ? "Paid" : payment.status}
+                      {paymentLabel(payment.status)}
                     </Badge>
                   </td>
                   <td className="px-5 py-3.5">
@@ -284,6 +296,7 @@ export function PaymentsManager() {
                   amount,
                   booking.amount,
                 ),
+                paymentMethod: editForm.method,
               })
                 .then(() => {
                   showToast("Payment updated.");
@@ -313,12 +326,69 @@ export function PaymentsManager() {
                 min={0}
                 step={100}
                 value={editForm.amount}
-                onChange={(event) =>
-                  setEditForm((prev) => ({ ...prev, amount: event.target.value }))
-                }
+                onChange={(event) => {
+                  const nextAmount = event.target.value;
+                  const booking = bookings.find(
+                    (item) => item.id === editing.reservationId,
+                  );
+                  const numeric = Number(nextAmount);
+                  setEditForm((prev) => {
+                    let nextStatus = prev.status;
+                    if (
+                      booking &&
+                      Number.isFinite(numeric) &&
+                      (prev.status === "Success" || prev.status === "Partial")
+                    ) {
+                      nextStatus =
+                        numeric >= booking.amount && booking.amount > 0
+                          ? "Success"
+                          : numeric > 0
+                            ? "Partial"
+                            : "Pending";
+                    }
+                    return { ...prev, amount: nextAmount, status: nextStatus };
+                  });
+                }}
                 className="field-input h-11"
                 required
               />
+              {(() => {
+                const booking = bookings.find(
+                  (item) => item.id === editing.reservationId,
+                );
+                if (!booking) return null;
+                const amount = Number(editForm.amount);
+                const remaining = Math.max(
+                  0,
+                  booking.amount - (Number.isFinite(amount) ? amount : 0),
+                );
+                return (
+                  <span className="mt-1 block text-xs text-muted">
+                    Booking total {formatINR(booking.amount)}
+                    {Number.isFinite(amount) && amount < booking.amount
+                      ? ` · balance ${formatINR(remaining)}`
+                      : ""}
+                  </span>
+                );
+              })()}
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1.5 block font-medium">Method</span>
+              <select
+                value={editForm.method}
+                onChange={(event) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    method: event.target.value as Payment["method"],
+                  }))
+                }
+                className="field-input h-11"
+              >
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
+                <option value="Bank transfer">Bank transfer</option>
+              </select>
             </label>
             <label className="block text-sm">
               <span className="mb-1.5 block font-medium">Status</span>
@@ -334,7 +404,7 @@ export function PaymentsManager() {
               >
                 {paymentStatuses.map((status) => (
                   <option key={status} value={status}>
-                    {status === "Success" ? "Paid" : status}
+                    {paymentLabel(status)}
                   </option>
                 ))}
               </select>
@@ -372,7 +442,7 @@ export function PaymentsManager() {
                 (booking) => booking.guest.toLowerCase() === form.guest.trim().toLowerCase(),
               );
               if (match) {
-                void recordPayment(match.id, match.paidAmount + amount);
+                void recordPayment(match.id, match.paidAmount + amount, form.method);
               }
               setRecordOpen(false);
               setForm({ guest: "", amount: "", method: "UPI" });

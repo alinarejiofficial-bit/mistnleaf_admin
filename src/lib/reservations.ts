@@ -16,6 +16,8 @@ export type BookingSource =
 
 export type PaymentStatus = "Paid" | "Partial" | "Pending" | "Refunded";
 
+export type PaymentMethod = "UPI" | "Card" | "Cash" | "Bank transfer";
+
 export type Reservation = {
   id: string;
   guest: string;
@@ -31,6 +33,7 @@ export type Reservation = {
   status: ReservationStatus;
   source: BookingSource;
   paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod;
   amount: number;
   paidAmount: number;
   notes?: string;

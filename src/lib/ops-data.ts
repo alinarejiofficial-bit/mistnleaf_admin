@@ -53,7 +53,7 @@ export type Payment = {
   method: "UPI" | "Card" | "Cash" | "Bank transfer";
   channel: "Online" | "Offline";
   amount: number;
-  status: "Success" | "Pending" | "Failed" | "Refunded";
+  status: "Success" | "Partial" | "Pending" | "Failed" | "Refunded";
   date: string;
 };
 

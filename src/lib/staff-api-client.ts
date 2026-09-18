@@ -241,6 +241,7 @@ export type StaffReservation = {
   status: string;
   source: string;
   paymentStatus: string;
+  paymentMethod?: string;
   amount: number | string;
   paidAmount: number | string;
   notes?: string;
@@ -301,6 +302,8 @@ export async function updateStaffBooking(
     status?: string;
     payment_status?: string;
     paymentStatus?: string;
+    payment_method?: string;
+    paymentMethod?: string;
     paid_amount?: number;
     paidAmount?: number;
     notes?: string;

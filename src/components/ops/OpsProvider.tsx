@@ -121,7 +121,7 @@ type OpsContextValue = {
   saveRoomStatus: (room: Room) => Promise<void>;
   addRoom: (room: Room) => Promise<void>;
   saveGuest: (guest: Guest, previous: Guest | null) => Promise<void>;
-  recordPayment: (bookingId: string, amount?: number) => Promise<void>;
+  recordPayment: (bookingId: string, amount?: number, method?: Payment["method"]) => Promise<void>;
   advanceMaintenance: (id: string) => Promise<void>;
   reportMaintenance: (input: {
     room: string;
@@ -236,6 +236,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     await updateStaffBooking(id, {
       status: patch.status,
       payment_status: patch.paymentStatus,
+      payment_method: patch.paymentMethod,
       paid_amount: patch.paidAmount,
       notes: patch.notes,
       room_unit: roomMatch?.id,
@@ -428,12 +429,16 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const recordPayment = useCallback(
-    async (bookingId: string, amount?: number) => {
+    async (bookingId: string, amount?: number, method?: Payment["method"]) => {
       const booking = bookings.find((item) => item.id === bookingId);
       if (!booking) return;
       const paid = amount ?? booking.amount;
       const paymentStatus = paid >= booking.amount ? "Paid" : "Partial";
-      await saveBooking(bookingId, { paidAmount: paid, paymentStatus });
+      await saveBooking(bookingId, {
+        paidAmount: paid,
+        paymentStatus,
+        ...(method ? { paymentMethod: method } : {}),
+      });
     },
     [bookings, saveBooking],
   );

@@ -8,6 +8,7 @@ import { formatDisplayDate } from "@/lib/data";
 import {
   paymentStatusStyles,
   reservationStatusStyles,
+  type PaymentMethod,
   type PaymentStatus,
   type Reservation,
 } from "@/lib/reservations";
@@ -21,6 +22,13 @@ const paymentStatusOptions: PaymentStatus[] = [
   "Partial",
   "Pending",
   "Refunded",
+];
+
+const paymentMethodOptions: PaymentMethod[] = [
+  "UPI",
+  "Cash",
+  "Card",
+  "Bank transfer",
 ];
 
 function paidAmountForStatus(
@@ -96,6 +104,21 @@ export function CheckInManager() {
     }
   }
 
+  async function updatePaymentMethod(id: string, paymentMethod: PaymentMethod) {
+    setBusyId(id);
+    try {
+      await saveBooking(id, { paymentMethod });
+      showToast(`Payment method set to ${paymentMethod}.`);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not update payment method.",
+        "error",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -140,6 +163,7 @@ export function CheckInManager() {
               onCheckIn={() => void completeCheckIn(item.id)}
               onCollect={() => void recordPayment(item.id)}
               onPaymentStatus={(status) => void updatePaymentStatus(item.id, status)}
+              onPaymentMethod={(method) => void updatePaymentMethod(item.id, method)}
             />
           ))}
           {checkInQueue.length === 0 ? (
@@ -188,6 +212,7 @@ function ArrivalRow({
   onCheckIn,
   onCollect,
   onPaymentStatus,
+  onPaymentMethod,
 }: {
   reservation: Reservation;
   today: string;
@@ -197,6 +222,7 @@ function ArrivalRow({
   onCheckIn: () => void;
   onCollect: () => void;
   onPaymentStatus: (status: PaymentStatus) => void;
+  onPaymentMethod: (method: PaymentMethod) => void;
 }) {
   const balance = Math.max(0, reservation.amount - reservation.paidAmount);
   const overdue = reservation.checkIn < today;
@@ -261,30 +287,53 @@ function ArrivalRow({
             label="Guest verified"
             detail={`${reservation.email} · ${reservation.phone}`}
           />
-          <div className="rounded-lg bg-surface px-3 py-2.5">
-            <p className="text-xs font-medium text-brand-mid">Payment status</p>
+          <div className="rounded-lg bg-surface px-3 py-2.5 sm:col-span-2">
+            <p className="text-xs font-medium text-brand-mid">Payment</p>
             <PermissionGate
               action="payments.record"
               fallback={
                 <p className="mt-1 text-sm text-foreground">
-                  {reservation.paymentStatus} · {formatINR(reservation.paidAmount)} paid
+                  {reservation.paymentStatus} · {reservation.paymentMethod ?? "—"} ·{" "}
+                  {formatINR(reservation.paidAmount)} paid
                 </p>
               }
             >
-              <select
-                value={reservation.paymentStatus}
-                disabled={busy}
-                onChange={(event) =>
-                  onPaymentStatus(event.target.value as PaymentStatus)
-                }
-                className="field-input mt-1.5 h-10 w-full"
-              >
-                {paymentStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs text-muted">Status</span>
+                  <select
+                    value={reservation.paymentStatus}
+                    disabled={busy}
+                    onChange={(event) =>
+                      onPaymentStatus(event.target.value as PaymentStatus)
+                    }
+                    className="field-input h-10 w-full"
+                  >
+                    {paymentStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block text-xs text-muted">Method</span>
+                  <select
+                    value={reservation.paymentMethod ?? "Cash"}
+                    disabled={busy}
+                    onChange={(event) =>
+                      onPaymentMethod(event.target.value as PaymentMethod)
+                    }
+                    className="field-input h-10 w-full"
+                  >
+                    {paymentMethodOptions.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <p className="mt-1 text-xs text-muted">
                 {formatINR(reservation.paidAmount)} paid of {formatINR(reservation.amount)}
               </p>
