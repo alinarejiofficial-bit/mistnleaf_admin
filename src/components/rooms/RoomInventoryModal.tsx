@@ -107,6 +107,32 @@ export function RoomInventoryModal({
     setAmenitiesText(draft.amenities.join(", "));
   }
 
+  function applyRoomTemplate(sourceId: string) {
+    const source = existingRooms.find((item) => item.id === sourceId);
+    if (!source) return;
+    const draft = emptyRoomForType(existingRooms, source.type);
+    setForm((prev) => ({
+      ...draft,
+      id: prev.id,
+      floor: source.floor,
+      capacity: source.capacity,
+      beds: source.beds,
+      rate: source.rate,
+      sizeSqFt: source.sizeSqFt,
+      amenities: [...source.amenities],
+      imageUrl: source.imageUrl,
+      type: source.type,
+      status: prev.status || "Available",
+      notes: "",
+    }));
+    setAmenitiesText(source.amenities.join(", "));
+    if (addMode !== "type") setAddMode("type");
+  }
+
+  const roomsByName = [...existingRooms].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true }),
+  );
+
   if (!open) return null;
 
   return (
@@ -205,6 +231,27 @@ export function RoomInventoryModal({
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
+            {isNew ? (
+              <Field label="Copy from room" className="sm:col-span-2">
+                <select
+                  value=""
+                  onChange={(event) => {
+                    if (event.target.value) applyRoomTemplate(event.target.value);
+                  }}
+                  className="field-input h-11"
+                >
+                  <option value="">Select an existing room…</option>
+                  {roomsByName.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} · {item.type}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-muted">
+                  Optional. Copies type, rate, beds, and amenities — then creates the next unit.
+                </span>
+              </Field>
+            ) : null}
             <Field label="Room ID">
               <input
                 value={form.id}
@@ -233,28 +280,47 @@ export function RoomInventoryModal({
               />
             </Field>
             <Field label="Room type">
-              <input
-                list="mistnleaf-room-types"
-                value={form.type}
-                onChange={(event) => applyType(event.target.value)}
-                placeholder={
-                  addMode === "scratch"
-                    ? "e.g. Canopy Suite or a new type name"
-                    : "e.g. Mist Cottage"
-                }
-                className="field-input h-11"
-                required
-              />
-              <datalist id="mistnleaf-room-types">
-                {typeOptions.map((type) => (
-                  <option key={type} value={type} />
-                ))}
-              </datalist>
-              <span className="mt-1 block text-xs text-muted">
-                {addMode === "scratch"
-                  ? "New or existing type name."
-                  : "Pick a type to copy its details."}
-              </span>
+              {isNew && addMode === "type" ? (
+                <>
+                  <select
+                    value={form.type}
+                    onChange={(event) => applyType(event.target.value)}
+                    className="field-input h-11"
+                    required
+                  >
+                    <option value="" disabled>
+                      Select room type…
+                    </option>
+                    {typeOptions.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs text-muted">
+                    Pick a type to copy its details.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <input
+                    list="mistnleaf-room-types"
+                    value={form.type}
+                    onChange={(event) => applyType(event.target.value)}
+                    placeholder="e.g. Canopy Suite or a new type name"
+                    className="field-input h-11"
+                    required
+                  />
+                  <datalist id="mistnleaf-room-types">
+                    {typeOptions.map((type) => (
+                      <option key={type} value={type} />
+                    ))}
+                  </datalist>
+                  <span className="mt-1 block text-xs text-muted">
+                    New or existing type name.
+                  </span>
+                </>
+              )}
             </Field>
             <Field label="Status">
               <select
